@@ -1,0 +1,9 @@
+obj/
+plugins/
+*.o
+*.so
+*.a
+*.d
+*~
+*.tar.gz
+test/output/
