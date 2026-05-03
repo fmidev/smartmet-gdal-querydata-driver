@@ -7,7 +7,7 @@
 
 Summary: GDAL driver for FMI QueryData (.sqd) files
 Name: %{SPECNAME}
-Version: 26.5.1
+Version: 26.5.3
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -15,26 +15,60 @@ URL: https://github.com/fmidev/smartmet-gdal-querydata-driver
 Source: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
+# This package vendors the smartmet libraries (newbase, macgyver, gis) as git
+# subtrees under vendor/ and statically links them into the plugin .so. The
+# resulting RPM has *no* runtime dependency on smartmet-library-* packages —
+# only on Fedora-stock libraries — which makes it installable on a fresh
+# Fedora desktop alongside QGIS without pulling in the FMI build environment.
+
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: rpm-build
 BuildRequires: gdal312-devel
-BuildRequires: smartmet-library-newbase-devel >= 26.2.4
-BuildRequires: smartmet-library-macgyver-devel >= 26.2.4
-BuildRequires: smartmet-library-gis-devel >= 26.2.4
+BuildRequires: geos313-devel
+BuildRequires: proj97-devel
+BuildRequires: fmt-devel
+BuildRequires: sqlite-devel
+BuildRequires: libpqxx-devel
+BuildRequires: libicu-devel
+BuildRequires: boost-devel
+BuildRequires: double-conversion-devel
+# Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
+# unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
 
 Requires: gdal312-libs
-Requires: smartmet-library-newbase >= 26.2.4
-Requires: smartmet-library-macgyver >= 26.2.4
-Requires: smartmet-library-gis >= 26.2.4
+Requires: geos313
+Requires: proj97
+Requires: fmt-libs
+Requires: sqlite-libs
+Requires: libpqxx
+Requires: libicu
+Requires: boost-iostreams
+Requires: boost-regex
+Requires: boost-serialization
+Requires: boost-system
+Requires: boost-thread
+Requires: double-conversion
+# tzdata is read at runtime by Howard Hinnant's date library (USE_OS_TZDB=1).
+Requires: tzdata
 
 Provides: %{SPECNAME}
 
 %description
-GDAL plugin that exposes FMI QueryData (.sqd) files as a GDAL raster
-dataset, enabling read access via gdalinfo, gdal_translate, gdalwarp,
-QGIS, rasterio, and any other GDAL consumer. Each (parameter, level)
-combination is exposed as a subdataset, with one band per time step.
+Out-of-tree GDAL plugin that exposes FMI QueryData (.sqd, .fqd) files as a
+GDAL raster dataset. Once installed, gdalinfo, gdal_translate, gdalwarp,
+QGIS, rasterio, xarray, and any other GDAL consumer can read .sqd files
+directly. Each (parameter, level) combination is exposed as a subdataset,
+with one band per time step. Composite parameters (TotalWind, Weather-
+AndCloudiness) are unpacked into their sub-components. The plugin also
+exposes the data via GDAL's Multi-Dimensional Raster API for xarray /
+NetCDF / Zarr workflows, and supports CreateCopy for round-tripping
+single-parameter rasters back to .sqd via gdal_translate.
+
+QueryData is a legacy FMI-internal format and is not part of upstream
+GDAL. The driver bundles its three smartmet C++ library dependencies
+(newbase, macgyver, gis) statically, so installing this RPM does not
+pull any FMI runtime libraries onto the system.
 
 %prep
 rm -rf $RPM_BUILD_ROOT
@@ -44,9 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 make %{_smp_mflags}
 
 %install
-mkdir -p $RPM_BUILD_ROOT%{GDAL_PLUGIN_DIR}
-install -p -m 755 gdal_%{DRIVERNAME}.so \
-    $RPM_BUILD_ROOT%{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
+make install DESTDIR=$RPM_BUILD_ROOT GDAL_PLUGIN_DIR=%{GDAL_PLUGIN_DIR}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -56,5 +88,9 @@ rm -rf $RPM_BUILD_ROOT
 %{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
 
 %changelog
+* Sun May 3 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.3-1.fmi
+- Vendored newbase, macgyver, gis as git subtrees and statically link them.
+  The plugin RPM now has no smartmet-library runtime dependencies.
+
 * Fri May 1 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.1-1.fmi
 - Initial version: read-only driver with subdatasets per (parameter, level)
