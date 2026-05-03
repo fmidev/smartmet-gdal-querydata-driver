@@ -1,0 +1,660 @@
+//Lehtis‰‰-asemat
+// 12.8.99/Lasse																		
+//																		
+//Leveys: Etel‰ist‰ leveytt‰ (-)																
+//Pituus: L‰ntist‰ pituutta (-)														
+//Muutamat tarkennettu www.whereOnEarthin avulla																
+//11.8.00:muutamat tarkennettu editorista																
+//5.9.00:Suomeen lis‰‰ kaupunkeja (koordinaatit editorista)
+//19.10.00/Lasse Hgin seudun asemia	
+//16.11.00/Lasse Tuntureita
+//29.11.01/Lasse SunPointi varten 8 asemaa, koord. editorista
+//20.6.01/Lasse tarkentanut aika monta samoihin kuin editorissa =4 desimaalia
+//30.8.01/Lasse +Kauhajoki, Toholampi, Veteli, kalajoki
+//6.9.01/Lasse +Vaalimaa
+//20.9.01/Tuikku + Iso-Omena, It‰keskus, Kerava, Nurmij‰rvi, Vihti
+//27.11.01/Lasse + Kaamanen
+//joulu-tammi 2001-02/Lasse uusille lehdille aika monta paikkaa
+//15.5.02 j‰rvi‰ lis‰‰
+//helmi 02/Lasse euroopan kaupunkeja (suomalainen nimi aakkoslistaan) ja suomalaisia
+//tammi 03/Lasse: n.38 ruotsinkielist‰ kuntaa (svenska yle)
+//maalis 08/Lasse: wmoNNNNN lis‰nimet (toisena vaihtoehtona) muista etunolla
+//28.6.10/Lasse: Vantaa ja Helsinki <- Vantaa_HS ja Helsinki_HS 
+//*************************************************************
+//maalis/02: uusi versio LocationFinderista (t‰m‰n k‰sittelij‰)
+// ****kunhan uusi exe otetaan k‰yttˆˆn****
+//  - nimen(ien) ja koordinaattien erottimena tabulaattori 
+//  - v‰lilyˆnti ei k‰y erottimeksi vaan on merkitsev‰ nimiss‰ (esim Las Palmas)
+//  - ei en‰‰ alaviivaa nimiin (m‰‰rittelyss‰ k‰y Las_Palmas tai "Las Palmas")
+//  - max 6 nime‰ paikalle (Tukholma Stockholm) 
+//	- //-alkuiset rivit kommentteja
+//  - #-alkuiset kommentteja
+//  - hyvin lyhyet (<6 merkki‰) kommentteja
+//  - rivin lopussa toisen luvun j‰lkeen olevat merkit hyl‰t‰‰n
+//  - tyhj‰t rivit hyl‰t‰‰n
+//  - n‰m‰ saa myˆs olla rivin alussa
+//  - 01234567890-+. -alkavat sanat tulkitaan lon/latiksi (nimien j‰lkeen)
+//  - pieni‰/isoja kirjaimia ei erotella
+//**************************************************************
+
+// *********** LATVIA ******************************************
+LatviaBorderSW	21.05	56.08
+LatviaBorderNE	27.53	57.53
+Aluksne		wmo26346	27.03	57.47
+Daugavpils	wmo26544	26.53	55.89
+Dobele	wmo26424	23.32	56.63
+Liepaja	wmo26406	21.00	56.50 
+Skulte	wmo26326	24.40	57.31
+Ventspils	wmo26314	21.53	57.40
+Riga	Riika	wmo26422	24.02	56.96 
+Gulf_of_Riga	57.77	23.48
+
+Kˆˆpenhamina	Copenhagen	Kopenhagena	wmo06180	12.64	55.63
+Moskova	Moscow		Maskava	wmo27612	37.67	55.72
+Pariisi	Paris	Parize	wmo07149	2.32	48.83
+Wien	Vienna	wmo11036	16.35	48.21
+Rooma	Roma	wmo16242	12.48	41.85
+Lissabon	Lisboa	wmo08579	-9.13	38.70
+Ateena	Athens		Atenas	wmo16716	23.70	38.00
+
+// *********** LATVIA END ******************************************
+
+// Suomen rajojen kiintopisteit‰
+Porin_pohjukka	21.68	61.55
+Kuusamon_nokka	30.13	65.68
+Sallan_kulma	30.01	67.67
+Suomen_it‰isin	31.58	62.89	
+Uudenkaupungin_kulma	21.35	60.68 //tarkkuus ei sovi Paikka-sijoittamiseen, k‰yt‰ Asema
+
+
+//***Sis‰j‰rville joku edustava paikka
+Haukivesi	28.50	62.09
+Kallavesi	27.80	62.84
+Kyyvesi	27.13	61.96
+Lietvesi	28.02	61.47
+Luonteri	27.82	61.63
+Orivesi_j‰rvi	29.40	62.34
+Ouluj‰rvi	27.09	64.34
+Pielinen	29.44	63.29
+Pihlajavesi	28.91	61.74
+Puruvesi	29.46	61.87
+Puula	26.72	61.78
+Pyh‰j‰rvi_j‰rvi	22.30	61.01
+P‰ij‰nne	25.38	61.48
+Rusutj‰rvi	24.97	60.43	
+Saimaa	28.35	61.23
+Vesij‰rvi	25.48	61.13
+
+//***Hiihtorinteit‰
+Himos	25.33	61.88
+Isosyˆte	27.57	65.63													
+Iso-Syˆte	27.57	65.63													
+Levi	24.92	67.82
+Luosto	27.25	67.2
+Messil‰	25.55	61.00
+Pyh‰	27.12	67.0
+Ruka	29.17	66.15
+Saariselk‰	27.12	68.42
+Tahko	28.02	63.29
+Talma	25.17	60.39
+Vuokatti	28.29	64.12
+Yll‰s	24.21	67.62
+//***
+
+Eira	24.94	60.15
+Meri	25.00	60.00
+Testi	25.00	63.00
+
+Ajos	24.50	65.68
+Alah‰rm‰	22.79	63.24
+Alaj‰rvi	23.80	63.00		
+Alastaro	22.82	60.96		
+Alavus	23.64	62.59
+Angeli	25.69	68.914
+Anjalankoski	26.85	60.70
+Asikkala	25.566	61.167
+Askola	25.58	60.56
+Box	25.41	60.31
+Br‰ndˆ	21.07	60.49
+Dragsfj‰rd	22.47	60.07
+Eckerˆ	19.54	60.17
+Em‰salo	25.64	60.24			
+Enonkoski	27.77	62.07
+Enontekiˆ	23.61	68.37
+Espoo	24.6849	60.2046
+Espoo_HS	24.63	60.25
+Eura	22.13	61.13
+Evij‰rvi	23.47	63.36
+Finstrˆm	19.92	60.28
+Forssa	23.64	60.82
+Fˆglˆ	20.44	60.00
+Geta	19.87	60.41
+Haapavesi	25.4333	64.15
+Hailuoto	24.70	65.00
+Halsua	24.17	63.47	
+Hamina	27.2029	60.5607
+Hammarland	19.75	60.23
+Hankasalmi	26.44	62.37
+Hanko	22.98	59.83
+Hartola	26.01	61.57
+Hattula	24.37	61.10	
+Haukivuori	27.22	62.03
+Haukipudas	25.347	65.16
+Heinola	26.05	61.20
+Hein‰vesi	28.71	62.42
+Helsingin_aaltopoiju	25.235	59.965 //Kimmo Kahma
+Helsingin_kasuuni	24.925	59.95 //Persalta
+Helsinki	24.95	60.18
+HelsinkiGSM	25.02	60.19
+Helsinki_HS	24.95	60.18  
+HelsinkiTuuli	25.03	60.5 
+Herttoniemi	25.03	60.2
+Himanka	23.64	64.08
+Hinthaara	25.51	60.41
+Hinnerjoki	22.000	61.000
+Hollola	25.51	61.00
+Honkajoki	22.22	62.02
+Houtskari	21.36	60.22
+Huittinen	22.74	61.17
+Hyryl‰	25.02	60.41
+Hyrynsalmi	28.52	64.67	
+Hyvink‰‰	24.84	60.60
+H‰meenkyrˆ	23.20	61.63   
+H‰meenlinna	24.4569	60.9896
+Iisalmi	27.20	63.55  
+Ikaalinen	23.07	61.77
+Ilmajoki	22.57	62.72
+Ilomantsi	30.94	62.67		
+Imatra	28.7771	61.1829
+Inari	27.19	68.91 //j‰rven lounaiskolkka
+Iniˆ	21.38	60.40
+Inkoo	24.01	60.05
+Isokari	21.0268	60.7222
+Iso-Omena	24.73	60.16
+It‰keskus	25.08	60.21
+It‰salmi	25.26	60.25 
+Ivalo	27.5284	68.65
+IvaloGSM	27.08	69.07
+Ivalo_lentokentt‰	27.35	68.59
+Isosaari	25.08	60.1
+Jaala	26.51	61.05	
+Jalasj‰rvi	22.76	62.49
+Janakkala	24.53	60.93		
+Joensuu	29.7459	62.6026
+JoensuuGSM	29.78	62.59
+Jokioinen	23.5046	60.7967
+Jomala	19.90	60.17
+Joutsa	26.13	61.75
+Joutseno	28.52	61.12
+Juankoski	28.33	63.05
+Jurmo	21.10	60.52
+Juuka	29.25	63.24
+Juupajoki	24.45	61.78	
+Juva	27.87	61.89
+Jyv‰skyl‰	25.7608	62.2419
+Jyv‰skyl‰GSM	25.71	62.23
+J‰mij‰rvi	22.700	61.817
+J‰ms‰	25.17	61.83
+J‰rvenp‰‰	25.09	60.49		
+Kaamanen	27.16	69.16
+Kaarina	22.38	60.39
+Kajaani	27.7301	64.2211
+KajaaniGSM	27.27	64.11	
+Kalajoki	23.95	64.25
+Kangasala	24.08	61.48
+Kankaanp‰‰	22.35	61.80
+Kannonkoski	25.24	62.97
+Kannus	23.88	63.89
+Karjaa	23.70	60.06
+Karkkila	24.23	60.53
+Karstula	24.79	62.88
+Karunki	24.00	66.04
+Karvia	22.60	62.13
+Kaskinen	21.24	62.34		
+Kauhava	23.05	63.10
+Kauniainen	24.79	60.25
+Kaustinen	23.71	63.55
+Kemi	24.5667	65.7361
+Kemij‰rvi	27.35	66.72
+Kemiˆ	Kemiˆnsaari	22.71	60.14
+Kes‰lahti	29.81	61.88
+Kangasniemi	26.68	62.05   
+Kauhajoki	22.17	62.42
+Kauklahti	24.61	60.18
+Kerava	25.12	60.40
+Keuruu	24.55	62.27    
+Kevo	27.01	69.71  //etelemp‰n‰ kuin Utsjoki
+Kihniˆ	23.20	62.23
+Kiikoinen	22.48	61.44
+Kiiminki	25.76	65.12
+Kilpisj‰rvi	20.7882	69.0374
+Kinnula	25.03	63.34
+Kirkkonummi	24.44	60.12
+Kitee	30.15	62.09
+Kittil‰	24.8961	67.6396	      
+Kiuruvesi	26.62	63.63
+Kiutakˆng‰s	29.3167	66.3667 // Kuusamon
+Kivenlahti	24.68	60.14
+Klaukkala	24.82	60.32
+Koisj‰rvi	24.069	60.401 	      
+Kokem‰ki	22.25	61.2667
+Kolari	23.78	67.31
+Kokkola	23.117	63.833
+Konnevesi	26.36	62.59
+Korppoo	21.57	60.15
+Korsn‰s	21.17	62.67 		
+Korvatunturi	29.34	68.073	
+Koskenp‰‰	25.13	62.08
+Koski	24.14	60.66	
+Kotka	26.9374	60.4562
+Kouvola	26.7051	60.8647
+Kristiinankaupunki	21.3751	62.2711
+Kruunupyy	23.06	63.71
+Kuhmalahti	24.59	61.50
+Kuhmo	29.65	64.17
+Kuhmoinen	25.18	61.54
+Kullaa	22.19	61.47
+Kumlinge	20.81	60.25	
+Kuru	23.72	61.88
+Kustavi	21.35	60.57
+Kuusankoski	26.63	60.91
+Kuopio	27.656	62.8916
+KuopioGSM	27.74	62.87
+Kuorevesi	24.82	61.858
+Kuortti	26.46	61.41		
+Kurikka	22.35	62.59		
+Kuusamo	29.1511	65.9619
+Kyl‰niemi	28.18	61.30
+KuusamoGSM	29.27	65.99
+Kylm‰pihlaja	21.3028	61.1447
+Kyrˆ	22.77	60.71
+Kyyj‰rvi	24.59	63.03
+K‰lvi‰	22.433	63.867
+Lahti	25.6586	60.9799  //editori
+LahtiGSM	25.69	60.97
+Laihia	22.02	62.90	
+Laitila	21.71	60.88
+Lapinj‰rvi	26.18	60.61
+Lappaj‰rvi	23.61	63.21
+Lammi	25.01	61.07
+Lappeenranta	28.1836	61.0517
+LappeenrantaGSM	28.28	60.98
+Lapua	22.99	62.97
+Laukaa	25.94	62.41
+Lavia	22.49	61.61
+Leivonm‰ki	26.17	61.92
+Lemland	20.15	60.06
+Lemp‰‰l‰	23.77	61.31     
+Lepola	28.20	61.06  //L:ranta
+Lepp‰virta	27.79	62.50
+Lepp‰vaara	24.83	60.24
+Lestij‰rvi	24.69	63.51
+Lieksa	30.01	63.26
+Lieto	22.40	60.53
+Liljendal	26.09	60.56
+Liminka	25.4	64.817
+Lohja	24.07	60.25
+Lohtaja	23.51	64.02     
+Lokka	27.72	67.81   //kyl‰
+Loimaa	23.05	60.85   
+Loviisa	26.1877	60.4506
+Luhanka	25.74	61.79
+Lumparland	20.27	60.12
+Luopioinen	24.66	61.35
+Luoto	22.77	63.77
+Luum‰ki	27.52	60.91
+L‰nsim‰ki	25.19	60.25
+Maalahti	21.62	62.92
+Maaninka	27.31	63.15	
+Maarianhamina	19.9455	60.0878
+Maksamaa	22.07	63.22
+Malmi	25.05	60.25
+Matinkyl‰	24.74	60.17
+Merikarvia	21.51	61.84
+Mietoinen	21.8667	60.6333
+Mikkeli	27.2809	61.6856
+Muhos	25.983	64.800
+Multia	24.78	62.42	
+Muonio	23.6795	67.9436
+Mustasaari	21.71	63.15
+Myn‰m‰ki	22.00	60.67
+Myrskyl‰	25.92	60.68
+M‰nts‰l‰	25.32	60.63		
+M‰ntyharju	26.86	61.38
+M‰ntyluoto	21.43	61.61   
+M‰ntt‰	24.65	62.02
+Naantali	22.05	60.48	
+Nastola	25.97	60.96
+Nauvo	21.87	60.19
+Niinisalo	22.48	61.83
+Nikkil‰	25.25	60.39   
+Nilsi‰	28.04	63.19
+Nivala	24.97	63.92
+Nokia	23.55	61.48
+Nummela	24.32	60.33
+Nuorgam	27.90	70.07
+Nurmes	29.1501	63.5367
+Nurmij‰rvi	24.76	60.47
+Nurmij‰rviKarjala	29.98	63.52
+Nupuri	24.6	60.22
+N‰rpiˆ	21.34	62.47		
+Oulu	25.5082	64.9939     //whereOnEarth
+OuluGSM	25.71	64.93
+OuluTesti	25.42	64.88
+Oravainen	22.36	63.28
+Orimattila	25.65	60.82
+Orivesi	24.41	61.67
+Otalampi	24.42	60.40  
+Oulunsalo	25.375	64.9375 
+Outokumpu	28.97	62.71
+Padasjoki	25.33	61.34
+Parainen	L‰nsi-Turunmaa	22.30	60.29			
+Paimio	22.69	60.46
+Paltamo	27.85	64.40
+Parikkala	29.50	61.54 
+Parkano	23.00	62.01
+Pedersˆre	22.87	63.51
+Pelkosenniemi	27.50	67.10  
+Pello	24.00	66.75
+Perho	24.417	63.217
+Pernaja	26.02	60.45  
+Perniˆ	23.15	60.16  
+Per‰sein‰joki	29.95	62.56
+Pieksam‰ki	27.17	62.30
+Pielavesi	26.77	63.23
+Pietarsaari	22.7103	63.6724
+Pihtipudas	25.58	63.36
+Piippola	25.98	64.16
+Piikkiˆ	22.55	60.3833
+Pirkkala	23.58	61.45
+Pohja	23.53	60.10
+Pohjois_It‰meri_poiju	21.00	59.25  //MTL
+Pokka	26.17	68.22
+Pomarkku	21.98	61.69
+Pori	21.7926	61.4758
+Porkkala	24.48	60.02
+Pornainen	25.36	60.48
+Porvoo	25.6664	60.3884
+Posio	28.11	66.08
+Pudasj‰rvi	27.04	65.34
+Pukkila	25.59	60.65
+Pulkkila	25.866	64.268
+Punkaharju	29.42	61.75
+Puolanka	27.67	64.86
+Puumala	28.19	61.54		
+Pyh‰j‰rvi	25.99	63.68
+Pyh‰nt‰	26.317	64.1
+Pyh‰ranta	21.40	60.98
+Pyh‰salmi	25.96	63.67
+Pyht‰‰	26.75	60.48
+Pylkˆnm‰ki	24.80	62.66
+P‰lk‰ne	24.28	61.34
+Raahe	24.43	64.67
+Raippaluoto	21.27	63.141
+Raisio	22.17	60.49	
+Rankki	26.9667	60.3667
+Rantasalmi	28.31	62.08
+Rantsila	25.70	64.47   
+Ranua	26.58	66.00
+Rauma	21.52	61.13
+Rautavaara	28.300	63.49	
+Reisj‰rvi	24.925	63.586
+Riihim‰ki	24.7859	60.735
+Ristiina	27.28	61.50
+Rovaniemi	25.7023	66.4846
+RovaniemiGSM	25.72	66.49
+Ruotsinpyht‰‰	26.48	60.51
+Ruovesi	24.09	62.01	
+Ruukki	Siikajoki	25.09	64.68	
+Rym‰ttyl‰	21.97	60.36
+R‰‰kkyl‰	29.64	62.30
+Saarij‰rvi	25.28	62.68
+SahaLahti	24.34	61.47
+Salo	23.1429	60.3761
+Salla	28.6	66.8
+Saltvik	20.16	60.32
+Sappee	24.47	61.39
+Savitaipale	27.69	61.19
+Savonlinna	28.8703	61.8634
+Savukoski	28.15	67.28
+Sein‰joki	22.79	62.80
+Sein‰jokiGSM	22.83	62.76
+Siilinj‰rvi	27.65	63.07
+Sipoo	25.26	60.40
+Siuntio	24.20	60.14
+Sodankyl‰	26.5704	67.4083
+Soini	24.21	62.87
+Somero	23.51	60.64
+Sotkamo	28.40	64.12
+Sottunga	20.66	60.13
+Soukka	24.69	60.12
+Sund	20.19	60.21
+Suomussalmi	28.94	64.87
+Suonenjoki	27.12	62.63
+Sysm‰	25.68	61.48
+S‰kyl‰	22.34	61.05
+S‰rkisalo	22.93	60.10
+Sˆderkulla	25.33	60.29
+Tahkoluoto	21.3761	61.6303
+Taipalsaari	28.05	61.15	
+Taivalkoski	28.25	65.57
+Taivassalo	21.6	60.566	
+Tammisaari	Raasepori	23.4701	59.9797
+Tampere	23.76	61.49
+TampereGSM	23.83	61.63
+Tervola	24.79	66.07     
+Teuva	21.733	62.483
+Tikkakoski	25.68	62.38
+Tikkurila	25.06	60.27     
+Toholampi	24.26	63.77
+Tohmaj‰rvi	30.36	62.21
+Toijala	23.88	61.17       
+Tornio	24.1748	65.8346
+Turku	22.2733	60.4559      //editori	
+TurkuGSM	22.35	60.57
+Tuulos	24.89	61.11
+Tuuri	23.738	62.604
+Tuusula	24.99	60.42
+Tyrn‰v‰	25.65	64.767
+Upinniemi	24.35	60.01
+Urjala	23.48	61.08	
+Utaj‰rvi	26.411	64.762
+Utsjoki	26.9652	69.8645
+Utti	26.9333	60.9
+Utˆ	21.38	59.78	
+Uusikaarlepyy	22.5488	63.5199
+Uusikaupunki	21.437	60.7983
+Vaala	26.833	64.567
+Vaalimaa	27.84	60.6
+Vaasa	21.6416	63.0923
+VaasaGSM	21.59	63.08
+Valassaaret	21.0667	63.4333
+Valkeakoski	24.04	61.25
+Valkeala	26.8	60.95
+Vammala	22.92	61.34
+Vantaa	25.01	60.30  //25.03	60.28
+Vantaa_HS	25.01	60.30
+Varkaus	27.886	62.3126
+Vehmaa	21.62	60.68
+Vesilahti	23.617	61.317
+Vestra	24.76	60.33
+Veteli	23.81	63.48
+Vihti	24.40	60.41
+Virrat	23.77	62.23
+Viitasaari	25.83	63.08		
+Vimpeli	23.97	63.18
+Virolahti	27.75	60.57
+Vuotso	27.07	68.07
+Vuosaari	25.15	60.20
+VÂrdˆ	20.41	60.24
+V‰rtsil‰	30.55	62.18
+V‰stanfj‰rd	22.69	60.07		
+V‰‰ksy	25.53	61.16
+Vˆyri	22.23	63.14
+Ylih‰rm‰	22.77	63.13		
+Ylistaro	22.51	62.96
+Ylitornio	23.7	66.3
+Ylivieska	24.54	64.06
+Yl‰ne	22.42	60.88
+Ylˆj‰rvi	23.59	61.58
+Yp‰j‰	23.29	60.80
+ƒht‰ri	24.21	62.57
+
+//  MERIALUEET
+
+SLE	26.8	60
+SLW	24.1	59.7
+PIE	21.7	59.15
+PIL	19.6	59.15
+AS	19.16	60.26
+SM	21.12	60.13
+SMS	19.6	61.15 
+SMN	19.8	62.8 
+MK	20.9	63.5 
+PMS	22	64	
+PMN	23.3	65 
+
+GM	17.74	58.05
+KI	19.96	57.22
+RL	23.34	58.05
+OM	17.38	56.66
+SEI	19.34	55.65
+BM	15.97	55.20
+AM	14.00	55.04
+
+// lassen mielest‰ "aaa bbb" ei toimi vaan aaa_bbb
+Agadir	-9.64	30.48
+Alger	2.99	36.62
+Amsterdam	wmo06240	4.54	52.21
+Anchorage	wmo70273	-150	61.16
+Ankara	32.84	39.97
+Antalya	wmo17300	31.12	36.85
+Arkangeli	40.53	64.515
+Bagdad	wmo40780	44.42	33.32
+Bangkok	100.48	13.70
+Barcelona	wmo08181	2.16	41.40	
+Beirut	wmo40103	35.48	33.83
+Belgrad	Beograd	wmo13274	20.48	44.80
+Bergen	5.2	60.23
+Berliini	wmo10385	Berlin	13.40	52.51
+Birmingham	-1.89	52.53
+Bordeaux	wmo07510	-0.54	44.80
+Bratislava	17.33	48.27
+Bremen	7.38	52.52
+Bryssel	Brussels	wmo06451	5.13	50.48  //4.53333 50.9  
+Budapest	wmo12843	19.05	47.48
+Buenos_Aires	wmo87576	-58.48	-34.64
+Bukarest	wmo15420	26.11	44.40
+Dakar	wmo61641	-17.4519	14.6867
+Dublin	wmo03969	-6.24	53.32
+Edinburgh	-3.13	55.57
+Edmonton	wmo71121	-113.51	53.56
+Eilat	wmo40199	34.91	29.53
+Falun	15.4	60.37
+Faro	wmo08554	-7.93	37.02
+Frankfurt	wmo10637	8.66	50.1
+Funchal	wmo08522	-16.91	32.64
+Gdansk	18.41	54.22
+Glasgow	-4.275	55.90
+Gˆteborg	12	57.45
+Goa	wmo43192	72.93	15.81	
+Gothenburg	12	57.45
+G‰llivare	20.67	67.14
+Hampuri	Hamburg	10	53.33
+Hania	wmo16746	24.08	35.52
+Havanna	wmo78325	-82.48	23.14
+Hong_Kong	wmo45007	114.00	22.23
+Iraklion	wmo16754	25.13	35.32
+Istanbul	wmo17060	28.91	41.03
+Izmi¥r	27.23	38.48
+jakutsk	wmo24959	129.09	62.74
+Johannesburg	wmo68368	28.03	-26.16
+Jˆnkˆping	14.1	57.45
+Kairo	wmo62366	31.24	30.05
+Kairo_etel‰	31.24	29.5
+Kiova	wmo33345	30.48	50.4			
+Kiruna	20.15	67.53
+Lahnus	24.79	60.34
+Larnaka	wmo17609	33.62	34.86
+Las_Palmas	wmo60030	-15.43	28.13 
+Lissabon	wmo08579	-9.13	38.70
+Liverpool	-2.78	53.47
+Ljubljana	14.50	46.04	
+Longyearbyen	wmo01008	15.6487	78.2186
+Lontoo	London	wmo03772	-0.16	51.48
+Los_Angeles	wmo72295	-118.24	34
+Luulaja	22.13	65.59
+Luxemburg	6.28	49.78
+Lyon	4.84	45.79
+Madrid	wmo08221	-3.69	40.40
+Malaga	M·laga	wmo08482	-4.40	36.69
+Malmˆ	13	55.35
+Malta	14.50	35.89
+Miami	wmo72202	-80.11	25.75
+Milano	wmo16080	9.19	45.40  //hiukan etel‰‰n
+Minsk	27.3	53.51
+Montreal	wmo71627	-73.70	45.38
+Murmansk	wmo22113	33.08	68.59
+Nairobi	wmo63740	36.8	-1.27
+Napoli	14.31	40.87
+New_Delhi	wmo42182	77.21	28.64	
+New_York	wmo72503	-74.02	40.69	
+Nizza	wmo07690	7.26	43.67
+Norrkˆping	16.1	58.35
+Novgorod	31.2	58.3
+Novosibirsk	wmo29634	83	55.0633
+Nuuk	wmo04250	-51.56	64.24
+Odessa	wmo33837	30.74	46.48
+Oslo	wmo01492	10.45	59.56
+Palermo	wmo16410	13.37	38.13	
+Palma_de_Mallorca	Mallorca	wmo08306	2.8	39.5  //korjattu 5.6.07
+Peking	wmo54511	116.42	39.88
+Pietari	wmo26063	30.30	59.98
+Phuket	wmo48565	97.82	9.013
+Porto	-8.55	41.17
+Prague	14.42	50.10
+Praha	wmo11518	14.42	50.10
+Quito	wmo84071	-78.48	-0.22
+Rabat	-6.78	33.98
+Reykjavik	wmo04030	-21.93	64.14
+Rodos	Rhodos	Rhodes	wmo16749	28.22	36.42
+Riika	wmo26422	24.02	56.96
+Rio_de_Janeiro	wmo83746	-43.27	-22.85
+Sarajevo	18.42	43.93
+Singapore	wmo48698	104	2
+Skopje	21.50	42.04
+Sofia	wmo15614	23.29	42.64
+Sousse	10.80	35.71
+Sundsvall	17.3	62.4
+Sunny_Beach	wmo15655	29.42	44.83
+Sydney	wmo94767	151.16	-33.88
+Tallinna	wmo26038	24.75	59.40
+Tartto	26.44	58.2
+Tel_Aviv	wmo40179	34.74	32.08
+Tirana	19.80	41.37
+Tokio	Tokyo	wmo47662	139.72	35.64
+Tromssa	Tromsˆ	wmo01026	19.18	69.91
+Trondheim	10.23	63.36
+Tukholma	Stockholm	wmo02464	18.05	59.32 //miksi_ei_k‰y_samat???
+Tunis	wmo60715	10.21	36.8 
+Uumaja	20.28	63.8
+Varsova	wmo12375	21	52.15
+Varna	wmo15552	27.95	43.36
+Warsaw	21	52.15
+Venetsia	wmo16105	12.32	45.42
+Viipuri	28.41	60.45
+Vilna	wmo26730	25.3	54.64
+Vilnius	25.19	54.4
+Visby	18.2	57.37
+Zagreb	wmo14240	15.93	45.77  
+Z¸rich	wmo06660	8.53	47.37	
+≈re	13.05	63.25
+
+
+
+
+
+
+
+
+
