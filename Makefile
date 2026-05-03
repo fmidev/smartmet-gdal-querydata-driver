@@ -56,7 +56,11 @@ space := $(empty) $(empty)
 PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):$(subst $(space),:,$(__SBS_PCDIRS))
 export PKG_CONFIG_PATH
 
-PKG_MODULES := gdal fmt geos proj sqlite3 libpqxx icu-i18n
+PKG_MODULES := gdal fmt geos proj icu-i18n
+# sqlite3 and libpqxx are deliberately omitted: the only vendored translation
+# units that referenced them (EPSGInfo, PostgreSQLConnection*) are excluded
+# from VENDOR_SRCS below. Adding them back here would be a sign that something
+# unexpected is now being pulled in.
 
 CXX      ?= g++
 CXX_STD  ?= c++17
@@ -101,11 +105,20 @@ DRIVER_OBJS := $(patsubst %.cpp,obj/%.o,$(notdir $(DRIVER_SRCS)))
 # need and which isn't packaged on every distro.
 VENDOR_SRCS := \
   $(wildcard vendor/newbase/newbase/*.cpp) \
-  $(filter-out vendor/macgyver/macgyver/TemplateFormatter.cpp, \
+  $(filter-out \
+      vendor/macgyver/macgyver/TemplateFormatter.cpp \
+      vendor/macgyver/macgyver/PostgreSQLConnection.cpp \
+      vendor/macgyver/macgyver/PostgreSQLConnectionImpl.cpp, \
       $(wildcard vendor/macgyver/macgyver/*.cpp)) \
   $(wildcard vendor/macgyver/macgyver/date_time/*.cpp) \
   $(wildcard vendor/macgyver/macgyver/date_time/date/*.cpp) \
-  $(wildcard vendor/gis/gis/*.cpp)
+  $(filter-out \
+      vendor/gis/gis/EPSGInfo.cpp, \
+      $(wildcard vendor/gis/gis/*.cpp))
+# Excluded vendored files and the libraries they would have dragged in:
+#   TemplateFormatter.cpp           — libctpp2 (template engine, unused)
+#   PostgreSQLConnection*.cpp       — libpqxx (DB pooling, unused)
+#   EPSGInfo.cpp                    — libsqlite3 (proj's EPSG db lookup, unused)
 VENDOR_OBJS := $(patsubst %.cpp,obj/vendor/%.o,$(VENDOR_SRCS))
 VENDOR_LIB  := obj/libvendored_smartmet.a
 
@@ -170,7 +183,7 @@ vendor-check-version: $(VENDOR_SPECS)
 # -- Build rules -------------------------------------------------------------
 $(PLUGIN): $(DRIVER_OBJS) $(VENDOR_LIB)
 	$(CXX) $(FLAGS) -shared -rdynamic -o $@ $(DRIVER_OBJS) \
-	  $(VENDOR_LIB) $(SYSTEM_LIBS)
+	  $(VENDOR_LIB) -Wl,--as-needed $(SYSTEM_LIBS) -Wl,--no-as-needed
 	@echo "Checking $@ for unresolved references"
 	@if ldd -r $@ 2>&1 | c++filt | grep ^undefined\ symbol | \
 	   grep -Pv ':\ __(?:(?:a|t|ub)san_|sanitizer_)'; \

@@ -28,28 +28,24 @@ BuildRequires: gdal312-devel
 BuildRequires: geos313-devel
 BuildRequires: proj97-devel
 BuildRequires: fmt-devel
-BuildRequires: sqlite-devel
-BuildRequires: libpqxx-devel
 BuildRequires: libicu-devel
 BuildRequires: boost-devel
 BuildRequires: double-conversion-devel
 # Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
 # unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
 
+# Runtime requirements are deliberately tight: this list mirrors the NEEDED
+# entries actually present in the .so (verify with `objdump -p .so | grep
+# NEEDED`). The vendored libraries' translation units that would have dragged
+# in libpqxx, libsqlite3, etc., are excluded from VENDOR_SRCS in the Makefile.
+# geos/proj/icu/double-conversion are reachable transitively via libgdal but
+# the driver itself never references them, so --as-needed drops them.
 Requires: gdal312-libs
-Requires: geos313
-Requires: proj97
 Requires: fmt-libs
-Requires: sqlite-libs
-Requires: libpqxx
-Requires: libicu
 Requires: boost-iostreams
-Requires: boost-regex
-Requires: boost-serialization
-Requires: boost-system
 Requires: boost-thread
-Requires: double-conversion
-# tzdata is read at runtime by Howard Hinnant's date library (USE_OS_TZDB=1).
+# tzdata is a data-only dep, read at runtime by Howard Hinnant's date library
+# (USE_OS_TZDB=1) from /usr/share/zoneinfo.
 Requires: tzdata
 
 Provides: %{SPECNAME}
