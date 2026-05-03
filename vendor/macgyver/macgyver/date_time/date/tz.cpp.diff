@@ -1,0 +1,27 @@
+Local changes agaist original tz.cpp from Date library (https://github.com/HowardHinnant/date)
+
+diff --git a/src/tz.cpp b/src/tz.cpp
+index 999403e..7b6d002 100644
+--- a/src/tz.cpp
++++ b/src/tz.cpp
+@@ -83,7 +83,7 @@
+ #  include <windows.h>
+ #endif  // _WIN32
+ 
+-#include "date/tz_private.h"
++#include "tz_private.h"
+ 
+ #ifdef __APPLE__
+ #  include "date/ios.h"
+@@ -289,7 +289,11 @@ static
+ std::string
+ get_download_folder()
+ {
++#if defined(TZ_SOURCE_FOLDER)
++    return expand_path(TZ_SOURCE_FOLDER);
++#else
+     return expand_path("~/Downloads");
++#endif
+ }
+ 
+ #    endif // !defined(INSTALL)

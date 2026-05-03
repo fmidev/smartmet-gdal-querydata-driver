@@ -1,0 +1,16 @@
+*~
+.#*
+doc/
+obj/
+lib*.so
+compile_commands.json
+.gdb_history
+/.cproject
+/.project
+.settings/
+dist/
+*.d
+/smartmet-library-macgyver.tar.gz
+/abi-check
+/compat_reports
+/.vscode/
