@@ -154,6 +154,21 @@ QgsRasterLayer(uri, 'my-layer-name')
 
 The full subdataset URIs are listed under `SUBDATASET_n_NAME` in `gdalinfo forecast.sqd`.
 
+**3. Switch the renderer to Singleband gray (one-time per layer).** A loaded subdataset has one band per timestep — typically dozens — and QGIS unconditionally picks the **Multiband color** renderer for any raster with ≥3 bands, mapping bands 1/2/3 to R/G/B. For a time series this is meaningless: you'll see the first three forecast hours blended into a coloured mush. (Same QGIS behaviour applies to multi-band NetCDF and GRIB files; it's not specific to this driver.)
+
+Fix it:
+
+- **Layer Properties → Symbology → Render type:** change to **Singleband gray** (or **Singleband pseudocolor** for a colour ramp).
+- **Gray band:** pick the timestep you want as the "static" view (band 1 = first time step).
+- **Apply.**
+
+If you do this often, save it as the default for new raster layers: right-click the styled layer → **Styles → Save as Default → Datasource Database**. That sets your preferred renderer for any future raster QGIS opens.
+
+**4. Animate through timesteps.** Each band carries `time` and `NETCDF_DIM_time` metadata so the QGIS Temporal Controller can drive animation automatically:
+
+- **Layer Properties → Temporal:** tick **Temporal**, set **Configuration: Fixed temporal range per band**, click **Calculate** — it auto-fills the per-band start/end times from the metadata.
+- Top toolbar → click the 🕒 **Temporal Controller** icon → enable "Animated temporal navigation" → press play. QGIS walks through all timesteps in order.
+
 ### Python — rasterio (classic 2D)
 
 ```python
