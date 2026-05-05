@@ -139,13 +139,15 @@ print(gdal.GetDriverByName('querydata'))
 
 A `Driver` object means the plugin loaded; `None` means the path is wrong or QGIS wasn't fully restarted.
 
-**2. Open `.sqd` files via subdatasets, not as bare rasters.** Every QueryData file exposes its parameters through GDAL **subdatasets**, so `Layer → Add Raster Layer → some.sqd` fails with "Invalid Data Source" — the parent dataset has 0×0 size and no bands of its own. Use one of:
+**2. Loading a `.sqd` file.** Every QueryData file exposes its parameters as GDAL **subdatasets**, so opening one through **Layer → Add Raster Layer** (or drag-and-drop from Finder / Explorer) gives you a subdataset picker — pick the parameter and level you want and it loads as a regular raster. Same UX QGIS uses for NetCDF and HDF5 multi-variable files.
 
-- **Browser panel** (View → Panels → Browser): navigate to the `.sqd`, expand it, drag a subdataset onto the canvas.
-- **Add Raster Layer** with the full subdataset URI in the Source field, e.g. `querydata:"/path/to/forecast.sqd":0:0`. The full URIs are listed in `gdalinfo forecast.sqd` under `SUBDATASET_n_NAME`.
-- **Python Console:** `QgsRasterLayer('querydata:"...sqd":0:0', 'name')`.
+If you need scripted access, the equivalent in **Plugins → Python Console** is:
 
-(This is the same multi-subdataset pattern QGIS uses for NetCDF and HDF5 files.)
+```python
+QgsRasterLayer('querydata:"/path/to/forecast.sqd":0:0', '2m Temperature')
+```
+
+The subdataset URIs are also listed under `SUBDATASET_n_NAME` in `gdalinfo forecast.sqd`.
 
 ### Python — rasterio (classic 2D)
 
