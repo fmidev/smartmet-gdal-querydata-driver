@@ -63,14 +63,26 @@ gdalinfo --formats | grep querydata
 
 The `(rws)` capabilities mean **r**ead, **w**rite (via CreateCopy), **s**ubdatasets.
 
-### QGIS, conda, macOS, Windows
+### macOS (Homebrew, Apple Silicon)
 
-QGIS and other end-user packages typically bundle their own GDAL build. The plugin must match that GDAL's version. Either:
+```bash
+brew tap fmidev/smartmet
+brew install fmidev/smartmet/smartmet-gdal-querydata-driver
+```
 
-1. Install the plugin into *that* GDAL's `gdalplugins/` directory, **or**
-2. Set `GDAL_DRIVER_PATH=/path/to/plugins` in the environment QGIS launches under.
+The plugin is installed at `$(brew --prefix)/lib/gdalplugins/gdal_querydata.dylib`, where the Homebrew GDAL picks it up automatically. Verify with:
 
-For conda-forge installations the easiest route is a recipe parameterised on the `gdal` version pin.
+```bash
+gdalinfo --formats | grep querydata
+```
+
+The tap currently only ships Apple Silicon (`arm64_tahoe`) bottles — upstream Homebrew core has dropped Intel macOS bottles for several of our dependencies (`boost`, `fmt`, `howard-hinnant-date`, `libpq`, `libpqxx`). On Intel Macs you can still build from source, but it's unsupported.
+
+For QGIS, see the section below — QGIS bundles its own GDAL and needs its plugin path pointed explicitly.
+
+### conda
+
+For conda-forge environments the easiest route is a recipe parameterised on the `gdal` version pin (none currently published; PRs to [conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes) welcome).
 
 ## Usage
 
@@ -106,7 +118,56 @@ gdalwarp -t_srs EPSG:4326 'querydata:"forecast.sqd":0:0' temperature_wgs84.tif
 
 ### QGIS
 
-**Layer → Add Layer → Add Raster Layer**, pick a `.sqd` file. QGIS uses GDAL for raster I/O, so once the plugin is on the GDAL plugin path it Just Works — no QGIS-side configuration. For multi-parameter files QGIS shows its standard subdataset picker (the same UI it uses for NetCDF / HDF5).
+QGIS bundles its own GDAL build, so it doesn't see plugins installed for the system / Homebrew GDAL automatically. Two one-time setup steps:
+
+**1. Tell QGIS's GDAL where the plugin lives** — through QGIS's own settings (no shell env needed):
+
+1. **Settings → Options → System → Environment**
+2. Tick **Use custom variables (restart required)**
+3. Click **+** and add a row:
+   - **Apply:** `Overwrite`
+   - **Variable:** `GDAL_DRIVER_PATH`
+   - **Value:** the directory containing `gdal_querydata.so` / `.dylib`. On Homebrew (Apple Silicon) that's `/opt/homebrew/lib/gdalplugins`; on a Linux RPM install it's typically `/usr/lib64/gdalplugins`.
+4. **OK**, then fully quit QGIS (Cmd-Q on macOS, *not* just close the window) and relaunch.
+
+Verify in **Plugins → Python Console**:
+
+```python
+from osgeo import gdal
+print(gdal.GetDriverByName('querydata'))
+```
+
+A `Driver` object means the plugin loaded; `None` means the path is wrong or QGIS wasn't fully restarted.
+
+**2. Loading a `.sqd` file.** Every QueryData file exposes its parameters as GDAL **subdatasets**, so opening one through **Layer → Add Raster Layer** (or drag-and-drop from Finder / Explorer) gives you a subdataset picker — pick the parameter and level you want and it loads as a regular raster. Same UX QGIS uses for NetCDF and HDF5 multi-variable files.
+
+If you need scripted access, the equivalent in **Plugins → Python Console** is:
+
+```python
+# subdataset URI is querydata:"<path>":<paramIdx>:<levelIdx>
+# — paramIdx / levelIdx are zero-based indexes into the file, not parameter
+# IDs. Run `gdalinfo forecast.sqd` (or open in QGIS once and check the
+# subdataset picker) to see which index maps to which parameter.
+uri = 'querydata:"/path/to/forecast.sqd":3:0'
+QgsRasterLayer(uri, 'my-layer-name')
+```
+
+The full subdataset URIs are listed under `SUBDATASET_n_NAME` in `gdalinfo forecast.sqd`.
+
+**3. Switch the renderer to Singleband gray (one-time per layer).** A loaded subdataset has one band per timestep — typically dozens — and QGIS unconditionally picks the **Multiband color** renderer for any raster with ≥3 bands, mapping bands 1/2/3 to R/G/B. For a time series this is meaningless: you'll see the first three forecast hours blended into a coloured mush. (Same QGIS behaviour applies to multi-band NetCDF and GRIB files; it's not specific to this driver.)
+
+Fix it:
+
+- **Layer Properties → Symbology → Render type:** change to **Singleband gray** (or **Singleband pseudocolor** for a colour ramp).
+- **Gray band:** pick the timestep you want as the "static" view (band 1 = first time step).
+- **Apply.**
+
+If you do this often, save it as the default for new raster layers: right-click the styled layer → **Styles → Save as Default → Datasource Database**. That sets your preferred renderer for any future raster QGIS opens.
+
+**4. Animate through timesteps.** Each band carries `time` and `NETCDF_DIM_time` metadata so the QGIS Temporal Controller can drive animation automatically:
+
+- **Layer Properties → Temporal:** tick **Temporal**, set **Configuration: Fixed temporal range per band**, click **Calculate** — it auto-fills the per-band start/end times from the metadata.
+- Top toolbar → click the 🕒 **Temporal Controller** icon → enable "Animated temporal navigation" → press play. QGIS walks through all timesteps in order.
 
 ### Python — rasterio (classic 2D)
 
