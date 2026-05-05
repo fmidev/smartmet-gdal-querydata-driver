@@ -1,6 +1,11 @@
 # smartmet-gdal-querydata-driver
 
-A GDAL driver plugin for FMI's **QueryData** (`.sqd`, `.fqd`) raster format. Drop the plugin into your GDAL installation and `.sqd` files become first-class citizens for `gdalinfo`, `gdal_translate`, `gdalwarp`, QGIS, `rasterio`, `xarray` (via `rioxarray`), and any other GDAL consumer.
+A GDAL driver plugin for FMI's **QueryData** (`.sqd`, `.fqd`) raster format. Drop the plugin into your GDAL installation and `.sqd` files become a normal raster source for the entire GDAL ecosystem:
+
+- **CLI / desktop GIS** — `gdalinfo`, `gdal_translate`, `gdalwarp`, QGIS, GRASS GIS, SAGA, ArcGIS Pro, FME.
+- **Map / tile servers** — MapServer, GeoServer (via ImageIO-Ext), Mapnik, `gdal2tiles`, TiTiler, `rio-tiler`, terracotta.
+- **Language bindings** — Python (`rasterio`, `xarray` / `rioxarray`, `osgeo.gdal`), R (`terra`, `sf`, `stars`), Julia (`ArchGDAL.jl`), Rust (`gdal`), Go (`godal`), Node.js (`gdal-async`), Java, .NET, MATLAB.
+- **Cloud-native / STAC** — anything in the `pystac` / `odc-stac` / `stackstac` / planetary-computer chain, since they read through `rasterio`.
 
 ## Why this exists
 
