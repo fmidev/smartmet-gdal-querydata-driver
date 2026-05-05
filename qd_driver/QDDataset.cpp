@@ -346,6 +346,29 @@ void QDDataset::buildSubdatasetList()
   GDALDataset::SetMetadata(md.List(), "SUBDATASETS");
 }
 
+// Convert NFmiMetTime to epoch seconds (UTC).
+static int64_t toEpochSeconds(const NFmiMetTime& tm)
+{
+  std::tm tt{};
+  tt.tm_year = tm.GetYear() - 1900;
+  tt.tm_mon = tm.GetMonth() - 1;
+  tt.tm_mday = tm.GetDay();
+  tt.tm_hour = tm.GetHour();
+  tt.tm_min = tm.GetMin();
+  tt.tm_sec = 0;
+  return static_cast<int64_t>(timegm(&tt));
+}
+
+// Format an ISO-8601 string ("YYYY-MM-DDTHH:MM:SSZ") into the udunits style
+// ("YYYY-MM-DD HH:MM:SS UTC") used in CF "time#units" metadata.
+static std::string toUdunits(const std::string& iso)
+{
+  std::string out = iso;
+  if (auto p = out.find('T'); p != std::string::npos) out[p] = ' ';
+  if (auto p = out.rfind('Z'); p != std::string::npos) out.replace(p, 1, " UTC");
+  return out;
+}
+
 void QDDataset::buildBands()
 {
   // Position the iterator at the right (param, level). For sub-params we use
@@ -357,7 +380,32 @@ void QDDataset::buildBands()
     itsInfo->ParamIndex(itsParamIndex);
   itsInfo->LevelIndex(itsLevelIndex);
 
-  for (unsigned long t = 0; t < itsInfo->SizeTimes(); ++t)
+  // First pass: collect epoch seconds per timestep. Used both for per-band
+  // numeric NETCDF_DIM_time values and for the dataset-level VALUES list.
+  const unsigned long nT = itsInfo->SizeTimes();
+  std::vector<int64_t> epochSecs(nT, 0);
+  for (unsigned long t = 0; t < nT; ++t)
+  {
+    itsInfo->TimeIndex(t);
+    epochSecs[t] = toEpochSeconds(itsInfo->Time());
+  }
+  // CF "hours since <origin>" — origin is the first timestep so the first
+  // value is always 0 and the rest are integer hours for typical FMI forecast
+  // data (hourly, 3-hourly, 6-hourly). Falls back to fractional hours for any
+  // sub-hourly file (observational data) — udunits accepts that.
+  const int64_t epoch0 = nT > 0 ? epochSecs[0] : 0;
+  itsInfo->TimeIndex(0);
+  const std::string originUdunits =
+      nT > 0 ? toUdunits(formatTime(itsInfo->Time())) : std::string("1970-01-01 00:00:00 UTC");
+
+  std::vector<std::string> hourValues(nT);
+  for (unsigned long t = 0; t < nT; ++t)
+  {
+    const double hours = static_cast<double>(epochSecs[t] - epoch0) / 3600.0;
+    hourValues[t] = fmt::format("{:g}", hours);  // "0", "3", "6.5", …
+  }
+
+  for (unsigned long t = 0; t < nT; ++t)
   {
     itsInfo->TimeIndex(t);
     auto* band = new QDRasterBand(this, static_cast<int>(t + 1), t);
@@ -365,13 +413,39 @@ void QDDataset::buildBands()
     band->SetDescription(validTime.c_str());
     band->SetMetadataItem("VALID_TIME", validTime.c_str());
     band->SetMetadataItem("ORIGIN_TIME", formatTime(itsInfo->OriginTime()).c_str());
-    // Expose the timestamp under the keys consumers' temporal controllers
-    // scan for. QGIS's per-band Temporal Properties uses "time"; the netCDF-
-    // style "NETCDF_DIM_time" key is recognised by a wider range of tools.
-    // Both are mirrors of VALID_TIME (kept as-is for any pre-existing consumer).
+    // Per-band metadata that consumers' temporal controllers scan for:
+    //   - "time": ISO-8601, used by QGIS Layer Properties → Temporal expressions
+    //     via @band_description / @band_name fallbacks.
+    //   - "NETCDF_DIM_time": NUMERIC offset matching the dataset-level
+    //     "time#units" (CF/NetCDF convention). QGIS's "Calculate" button picks
+    //     this up automatically when the dataset-level NETCDF_DIM_* metadata
+    //     below is present.
     band->SetMetadataItem("time", validTime.c_str());
-    band->SetMetadataItem("NETCDF_DIM_time", validTime.c_str());
+    band->SetMetadataItem("NETCDF_DIM_time", hourValues[t].c_str());
     SetBand(static_cast<int>(t + 1), band);
+  }
+
+  // Dataset-level CF/NetCDF temporal metadata. Lets QGIS's "Fixed Time Range
+  // Per Band → Calculate" fill in per-band ranges automatically without the
+  // user typing an expression, and makes xarray / cdo / ncview understand the
+  // time axis in the same way they do native NetCDF.
+  if (nT > 0)
+  {
+    GDALDataset::SetMetadataItem("NETCDF_DIM_EXTRA", "{time}");
+    GDALDataset::SetMetadataItem(
+        "NETCDF_DIM_time_DEF",
+        fmt::format("{{{},6}}", nT).c_str());  // 6 = NC_DOUBLE in netCDF type codes
+    std::string valuesList = "{";
+    for (unsigned long i = 0; i < hourValues.size(); ++i)
+    {
+      if (i != 0) valuesList += ',';
+      valuesList += hourValues[i];
+    }
+    valuesList += '}';
+    GDALDataset::SetMetadataItem("NETCDF_DIM_time_VALUES", valuesList.c_str());
+    GDALDataset::SetMetadataItem(
+        "time#units", fmt::format("hours since {}", originUdunits).c_str());
+    GDALDataset::SetMetadataItem("time#calendar", "gregorian");
   }
 
   // Dataset-level metadata describing the (param, level) we represent.
