@@ -3,6 +3,7 @@
 #include "QDRasterBand.h"
 #include "QDStrings.h"
 
+#include <algorithm>
 #include <newbase/NFmiArea.h>
 #include <newbase/NFmiDataIdent.h>
 #include <newbase/NFmiFastQueryInfo.h>
@@ -426,26 +427,32 @@ void QDDataset::buildGeoTransformAndSRS()
   // Geotransform from world rect (in projected coordinates, or degrees for latlon).
   // QD grids are stored bottom-up by default. We expose a top-down geotransform
   // and let QDRasterBand flip Y on read.
+  //
+  // NFmiRect uses *screen* Y convention internally: rect.Top() has the SMALLER
+  // Y value (top of screen), rect.Bottom() has the LARGER Y value. So in the
+  // projected coordinate system used by area->WorldRect(), rect.Top() maps to
+  // the SOUTH edge (ymin) and rect.Bottom() maps to the NORTH edge (ymax) for
+  // any area whose worldXY axis points northward (which is virtually all of
+  // them — Equidistant Cylindrical, Mercator, LatLon, …).
+  // Using min/max here keeps the result correct even if some exotic area
+  // happens to encode the rect the other way around.
   const NFmiRect rect = area->WorldRect();
-  const double left = rect.Left();
-  const double right = rect.Right();
-  const double bottom = rect.Bottom();
-  const double top = rect.Top();
+  const double left   = std::min(rect.Left(), rect.Right());
+  const double right  = std::max(rect.Left(), rect.Right());
+  const double southY = std::min(rect.Top(),  rect.Bottom());
+  const double northY = std::max(rect.Top(),  rect.Bottom());
 
   if (itsGridXSize == 0 || itsGridYSize == 0) return;
 
-  const double pixelW = (right - left) / static_cast<double>(itsGridXSize);
-  // NFmiRect convention: Top is the larger Y value (north for geographic, +Y for projected).
-  // If for some reason Top<Bottom, fall back to abs.
-  const double height = top - bottom;
-  const double pixelH = height / static_cast<double>(itsGridYSize);
+  const double pixelW = (right  - left)   / static_cast<double>(itsGridXSize);
+  const double pixelH = (northY - southY) / static_cast<double>(itsGridYSize);
 
-  itsGeoTransform.xorig = left;
+  itsGeoTransform.xorig  = left;
   itsGeoTransform.xscale = pixelW;
-  itsGeoTransform.xrot = 0;
-  itsGeoTransform.yorig = top;
-  itsGeoTransform.yrot = 0;
-  itsGeoTransform.yscale = -pixelH;
+  itsGeoTransform.xrot   = 0;
+  itsGeoTransform.yorig  = northY;       // top of GDAL image = north
+  itsGeoTransform.yrot   = 0;
+  itsGeoTransform.yscale = -pixelH;      // negative = north-up
   itsHasGeoTransform = true;
 }
 
