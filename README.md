@@ -63,14 +63,24 @@ gdalinfo --formats | grep querydata
 
 The `(rws)` capabilities mean **r**ead, **w**rite (via CreateCopy), **s**ubdatasets.
 
-### QGIS, conda, macOS, Windows
+### macOS (Homebrew)
 
-QGIS and other end-user packages typically bundle their own GDAL build. The plugin must match that GDAL's version. Either:
+```bash
+brew tap fmidev/smartmet
+brew install fmidev/smartmet/smartmet-gdal-querydata-driver
+```
 
-1. Install the plugin into *that* GDAL's `gdalplugins/` directory, **or**
-2. Set `GDAL_DRIVER_PATH=/path/to/plugins` in the environment QGIS launches under.
+The plugin is installed at `$(brew --prefix)/lib/gdalplugins/gdal_querydata.dylib`, where the Homebrew GDAL picks it up automatically. Verify with:
 
-For conda-forge installations the easiest route is a recipe parameterised on the `gdal` version pin.
+```bash
+gdalinfo --formats | grep querydata
+```
+
+For QGIS, see the section below — QGIS bundles its own GDAL and needs its plugin path pointed explicitly.
+
+### conda
+
+For conda-forge environments the easiest route is a recipe parameterised on the `gdal` version pin (none currently published; PRs to [conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes) welcome).
 
 ## Usage
 
@@ -106,7 +116,34 @@ gdalwarp -t_srs EPSG:4326 'querydata:"forecast.sqd":0:0' temperature_wgs84.tif
 
 ### QGIS
 
-**Layer → Add Layer → Add Raster Layer**, pick a `.sqd` file. QGIS uses GDAL for raster I/O, so once the plugin is on the GDAL plugin path it Just Works — no QGIS-side configuration. For multi-parameter files QGIS shows its standard subdataset picker (the same UI it uses for NetCDF / HDF5).
+QGIS bundles its own GDAL build, so it doesn't see plugins installed for the system / Homebrew GDAL automatically. Two one-time setup steps:
+
+**1. Tell QGIS's GDAL where the plugin lives** — through QGIS's own settings (no shell env needed):
+
+1. **Settings → Options → System → Environment**
+2. Tick **Use custom variables (restart required)**
+3. Click **+** and add a row:
+   - **Apply:** `Overwrite`
+   - **Variable:** `GDAL_DRIVER_PATH`
+   - **Value:** the directory containing `gdal_querydata.so` / `.dylib`. On Homebrew macOS that's `/opt/homebrew/lib/gdalplugins` (Apple Silicon) or `/usr/local/lib/gdalplugins` (Intel); on a Linux RPM install it's typically `/usr/lib64/gdalplugins`.
+4. **OK**, then fully quit QGIS (Cmd-Q on macOS, *not* just close the window) and relaunch.
+
+Verify in **Plugins → Python Console**:
+
+```python
+from osgeo import gdal
+print(gdal.GetDriverByName('querydata'))
+```
+
+A `Driver` object means the plugin loaded; `None` means the path is wrong or QGIS wasn't fully restarted.
+
+**2. Open `.sqd` files via subdatasets, not as bare rasters.** Every QueryData file exposes its parameters through GDAL **subdatasets**, so `Layer → Add Raster Layer → some.sqd` fails with "Invalid Data Source" — the parent dataset has 0×0 size and no bands of its own. Use one of:
+
+- **Browser panel** (View → Panels → Browser): navigate to the `.sqd`, expand it, drag a subdataset onto the canvas.
+- **Add Raster Layer** with the full subdataset URI in the Source field, e.g. `querydata:"/path/to/forecast.sqd":0:0`. The full URIs are listed in `gdalinfo forecast.sqd` under `SUBDATASET_n_NAME`.
+- **Python Console:** `QgsRasterLayer('querydata:"...sqd":0:0', 'name')`.
+
+(This is the same multi-subdataset pattern QGIS uses for NetCDF and HDF5 files.)
 
 ### Python — rasterio (classic 2D)
 
