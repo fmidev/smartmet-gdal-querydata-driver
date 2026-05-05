@@ -46,9 +46,24 @@ void registerQuerydataDriver()
 
 }  // namespace
 
-// GDAL plugin entry point. The shared object is loaded by the GDAL driver
-// manager from $GDAL_DRIVER_PATH, and this symbol is looked up by name.
+// GDAL plugin entry points. The shared object is loaded by the GDAL driver
+// manager from $GDAL_DRIVER_PATH and one of these symbols is looked up by name.
+//
+//   - GDALRegisterMe          : legacy plugin convention (pre-3.5),
+//                               accepted by gdalinfo / C++ DriverManager
+//   - GDALRegister_querydata  : "deferred plugin" convention (GDAL 3.5+)
+//                               required by the SWIG/Python AllRegister() path
+//                               and by GDAL drivers that get registered as
+//                               deferred stubs before plugin scan.
+//
+// Both call the same registration body. Exporting both keeps the plugin
+// loadable through every code path.
 extern "C" void CPL_DLL GDALRegisterMe()
+{
+  registerQuerydataDriver();
+}
+
+extern "C" void CPL_DLL GDALRegister_querydata()
 {
   registerQuerydataDriver();
 }
