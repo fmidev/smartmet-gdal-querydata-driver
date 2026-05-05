@@ -102,6 +102,59 @@ struct ArraySpec
   long paramId = 0;
 };
 
+// ---------- CF attribute helper ---------------------------------------------
+//
+// Read-only string-valued GDALAttribute used for CF metadata (axis,
+// standard_name, etc.) on coordinate variables and data arrays. Without
+// these, gdalmdimtranslate writes a NetCDF that CF-aware tools (Panoply,
+// NetCDF-Java, ncview) can't parse correctly — the dimension assignments
+// in the consumer end up wrong (time → x, etc.).
+class CFStringAttribute : public GDALAttribute
+{
+ public:
+  static std::shared_ptr<CFStringAttribute> Create(const std::string& parent,
+                                                   const std::string& name,
+                                                   std::string value)
+  {
+    auto p = std::shared_ptr<CFStringAttribute>(
+        new CFStringAttribute(parent, name, std::move(value)));
+    p->SetSelf(p);
+    return p;
+  }
+
+ private:
+  CFStringAttribute(const std::string& parent, const std::string& name, std::string value)
+      : GDALAbstractMDArray(parent, name),
+        GDALAttribute(parent, name),
+        itsValue(std::move(value)),
+        itsType(GDALExtendedDataType::CreateString())
+  {
+  }
+
+ public:
+  const std::vector<std::shared_ptr<GDALDimension>>& GetDimensions() const override
+  {
+    return itsEmptyDims;
+  }
+  const GDALExtendedDataType& GetDataType() const override { return itsType; }
+
+ protected:
+  bool IRead(const GUInt64* /*arrayStartIdx*/, const size_t* /*count*/,
+             const GInt64* /*arrayStep*/, const GPtrDiff_t* /*bufferStride*/,
+             const GDALExtendedDataType& bufferDataType, void* pDstBuffer) const override
+  {
+    char* tmp = CPLStrdup(itsValue.c_str());
+    GDALExtendedDataType::CopyValue(&tmp, itsType, pDstBuffer, bufferDataType);
+    CPLFree(tmp);
+    return true;
+  }
+
+ private:
+  std::string itsValue;
+  GDALExtendedDataType itsType;
+  std::vector<std::shared_ptr<GDALDimension>> itsEmptyDims;
+};
+
 // ---------- coordinate variables --------------------------------------------
 
 class RegularDoubleArray : public GDALMDArray
@@ -116,6 +169,11 @@ class RegularDoubleArray : public GDALMDArray
         new RegularDoubleArray(parent, name, std::move(dim), start, step));
     p->SetSelf(p);
     return p;
+  }
+
+  void addAttr(const std::string& name, const std::string& value)
+  {
+    itsAttrs.push_back(CFStringAttribute::Create(GetFullName(), name, value));
   }
 
  private:
@@ -140,6 +198,16 @@ class RegularDoubleArray : public GDALMDArray
     return itsDims;
   }
   const GDALExtendedDataType& GetDataType() const override { return itsType; }
+  std::shared_ptr<GDALAttribute> GetAttribute(const std::string& osName) const override
+  {
+    for (const auto& a : itsAttrs)
+      if (a->GetName() == osName) return a;
+    return nullptr;
+  }
+  std::vector<std::shared_ptr<GDALAttribute>> GetAttributes(CSLConstList) const override
+  {
+    return itsAttrs;
+  }
 
  protected:
   bool IRead(const GUInt64* arrayStartIdx, const size_t* count, const GInt64* arrayStep,
@@ -169,6 +237,7 @@ class RegularDoubleArray : public GDALMDArray
   double itsStart;
   double itsStep;
   std::string itsEmpty;
+  std::vector<std::shared_ptr<GDALAttribute>> itsAttrs;
 };
 
 class FloatVectorArray : public GDALMDArray
@@ -183,6 +252,11 @@ class FloatVectorArray : public GDALMDArray
         new FloatVectorArray(parent, name, std::move(dim), std::move(values)));
     p->SetSelf(p);
     return p;
+  }
+
+  void addAttr(const std::string& name, const std::string& value)
+  {
+    itsAttrs.push_back(CFStringAttribute::Create(GetFullName(), name, value));
   }
 
  private:
@@ -206,6 +280,16 @@ class FloatVectorArray : public GDALMDArray
     return itsDims;
   }
   const GDALExtendedDataType& GetDataType() const override { return itsType; }
+  std::shared_ptr<GDALAttribute> GetAttribute(const std::string& osName) const override
+  {
+    for (const auto& a : itsAttrs)
+      if (a->GetName() == osName) return a;
+    return nullptr;
+  }
+  std::vector<std::shared_ptr<GDALAttribute>> GetAttributes(CSLConstList) const override
+  {
+    return itsAttrs;
+  }
 
  protected:
   bool IRead(const GUInt64* arrayStartIdx, const size_t* count, const GInt64* arrayStep,
@@ -230,6 +314,7 @@ class FloatVectorArray : public GDALMDArray
   GDALExtendedDataType itsType;
   std::vector<float> itsValues;
   std::string itsEmpty;
+  std::vector<std::shared_ptr<GDALAttribute>> itsAttrs;
 };
 
 // Time as int64 seconds since UNIX epoch — the convention xarray/CF understand.
@@ -246,6 +331,11 @@ class Int64VectorArray : public GDALMDArray
         parent, name, std::move(dim), std::move(values), std::move(unitAttr)));
     p->SetSelf(p);
     return p;
+  }
+
+  void addAttr(const std::string& name, const std::string& value)
+  {
+    itsAttrs.push_back(CFStringAttribute::Create(GetFullName(), name, value));
   }
 
  private:
@@ -272,6 +362,16 @@ class Int64VectorArray : public GDALMDArray
     return itsDims;
   }
   const GDALExtendedDataType& GetDataType() const override { return itsType; }
+  std::shared_ptr<GDALAttribute> GetAttribute(const std::string& osName) const override
+  {
+    for (const auto& a : itsAttrs)
+      if (a->GetName() == osName) return a;
+    return nullptr;
+  }
+  std::vector<std::shared_ptr<GDALAttribute>> GetAttributes(CSLConstList) const override
+  {
+    return itsAttrs;
+  }
 
  protected:
   bool IRead(const GUInt64* arrayStartIdx, const size_t* count, const GInt64* arrayStep,
@@ -297,6 +397,7 @@ class Int64VectorArray : public GDALMDArray
   std::vector<int64_t> itsValues;
   std::string itsUnit;
   std::string itsEmpty;
+  std::vector<std::shared_ptr<GDALAttribute>> itsAttrs;
 };
 
 // ---------- data arrays ------------------------------------------------------
@@ -545,12 +646,12 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
 
   // ---- dimensions ----
   auto dimT =
-      std::make_shared<GDALDimension>("/", "time", "TEMPORAL", "FUTURE", static_cast<GUInt64>(nT));
+      std::make_shared<GDALDimensionWeakIndexingVar>("/", "time", "TEMPORAL", "FUTURE", static_cast<GUInt64>(nT));
   auto dimL =
-      std::make_shared<GDALDimension>("/", "level", "VERTICAL", "UP", static_cast<GUInt64>(nL));
-  auto dimY = std::make_shared<GDALDimension>("/", "y", "HORIZONTAL_Y", "SOUTH",
+      std::make_shared<GDALDimensionWeakIndexingVar>("/", "level", "VERTICAL", "UP", static_cast<GUInt64>(nL));
+  auto dimY = std::make_shared<GDALDimensionWeakIndexingVar>("/", "y", "HORIZONTAL_Y", "SOUTH",
                                               static_cast<GUInt64>(ny));
-  auto dimX = std::make_shared<GDALDimension>("/", "x", "HORIZONTAL_X", "EAST",
+  auto dimX = std::make_shared<GDALDimensionWeakIndexingVar>("/", "x", "HORIZONTAL_X", "EAST",
                                               static_cast<GUInt64>(nx));
   root->addDimension(dimT);
   root->addDimension(dimL);
@@ -558,9 +659,53 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
   root->addDimension(dimX);
 
   // ---- coordinate variables ----
-  // x, y in projected coordinates (or degrees, for geographic SRS).
-  root->addCoord("x", RegularDoubleArray::Create("/", "x", dimX, xStart, xStep));
-  root->addCoord("y", RegularDoubleArray::Create("/", "y", dimY, yStart, yStep));
+  // Each dimension MUST have its indexing variable wired up via
+  // SetIndexingVariable. Without that, GDAL's NetCDF writer drops the
+  // coordinate variables on translate (warning: "No 1D variable is indexed
+  // by dimension <name>") and CF-aware tools like Panoply / NetCDF-Java
+  // can't recognise time / x / y at all.
+  //
+  // The coord arrays also carry CF attributes (axis, standard_name, units)
+  // so that consumers like Panoply identify which dim is which without
+  // having to fall back to "first dim is X" heuristics.
+
+  // x, y. Attributes depend on whether the SRS is geographic (degrees) or
+  // projected (metres). qi.Area()->WKT() is empty for some files so default
+  // to projected/metres if we can't tell.
+  bool isGeographic = false;
+  if (const NFmiArea* area = qi.Area())
+  {
+    OGRSpatialReference srs;
+    srs.SetAxisMappingStrategy(OAMS_TRADITIONAL_GIS_ORDER);
+    if (!area->WKT().empty() && srs.importFromWkt(area->WKT().c_str()) == OGRERR_NONE)
+      isGeographic = srs.IsGeographic() != 0;
+  }
+  auto xArr = RegularDoubleArray::Create("/", "x", dimX, xStart, xStep);
+  auto yArr = RegularDoubleArray::Create("/", "y", dimY, yStart, yStep);
+  xArr->addAttr("axis", "X");
+  yArr->addAttr("axis", "Y");
+  if (isGeographic)
+  {
+    xArr->addAttr("standard_name", "longitude");
+    xArr->addAttr("units", "degrees_east");
+    xArr->addAttr("long_name", "longitude");
+    yArr->addAttr("standard_name", "latitude");
+    yArr->addAttr("units", "degrees_north");
+    yArr->addAttr("long_name", "latitude");
+  }
+  else
+  {
+    xArr->addAttr("standard_name", "projection_x_coordinate");
+    xArr->addAttr("units", "m");
+    xArr->addAttr("long_name", "x coordinate of projection");
+    yArr->addAttr("standard_name", "projection_y_coordinate");
+    yArr->addAttr("units", "m");
+    yArr->addAttr("long_name", "y coordinate of projection");
+  }
+  root->addCoord("x", xArr);
+  root->addCoord("y", yArr);
+  dimX->SetIndexingVariable(xArr);
+  dimY->SetIndexingVariable(yArr);
 
   // levels
   std::vector<float> levelValues(nL, 0.f);
@@ -569,7 +714,11 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
     qi.LevelIndex(l);
     if (auto* lv = qi.Level()) levelValues[l] = lv->LevelValue();
   }
-  root->addCoord("level", FloatVectorArray::Create("/", "level", dimL, std::move(levelValues)));
+  auto levelArr = FloatVectorArray::Create("/", "level", dimL, std::move(levelValues));
+  levelArr->addAttr("axis", "Z");
+  levelArr->addAttr("long_name", "vertical level");
+  root->addCoord("level", levelArr);
+  dimL->SetIndexingVariable(levelArr);
 
   // times: epoch seconds
   std::vector<int64_t> timeValues(nT, 0);
@@ -586,8 +735,14 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
     tt.tm_sec = 0;
     timeValues[t] = static_cast<int64_t>(timegm(&tt));
   }
-  root->addCoord("time", Int64VectorArray::Create("/", "time", dimT, std::move(timeValues),
-                                                  "seconds since 1970-01-01T00:00:00Z"));
+  auto timeArr = Int64VectorArray::Create("/", "time", dimT, std::move(timeValues),
+                                          "seconds since 1970-01-01T00:00:00Z");
+  timeArr->addAttr("axis", "T");
+  timeArr->addAttr("standard_name", "time");
+  timeArr->addAttr("long_name", "time");
+  timeArr->addAttr("calendar", "gregorian");
+  root->addCoord("time", timeArr);
+  dimT->SetIndexingVariable(timeArr);
 
   // ---- data arrays: one per (param, sub-param) ----
   std::vector<std::shared_ptr<GDALDimension>> dataDims = {dimT, dimL, dimY, dimX};
