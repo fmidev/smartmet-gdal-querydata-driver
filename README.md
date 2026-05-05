@@ -63,7 +63,7 @@ gdalinfo --formats | grep querydata
 
 The `(rws)` capabilities mean **r**ead, **w**rite (via CreateCopy), **s**ubdatasets.
 
-### macOS (Homebrew)
+### macOS (Homebrew, Apple Silicon)
 
 ```bash
 brew tap fmidev/smartmet
@@ -75,6 +75,8 @@ The plugin is installed at `$(brew --prefix)/lib/gdalplugins/gdal_querydata.dyli
 ```bash
 gdalinfo --formats | grep querydata
 ```
+
+The tap currently only ships Apple Silicon (`arm64_tahoe`) bottles — upstream Homebrew core has dropped Intel macOS bottles for several of our dependencies (`boost`, `fmt`, `howard-hinnant-date`, `libpq`, `libpqxx`). On Intel Macs you can still build from source, but it's unsupported.
 
 For QGIS, see the section below — QGIS bundles its own GDAL and needs its plugin path pointed explicitly.
 
@@ -125,7 +127,7 @@ QGIS bundles its own GDAL build, so it doesn't see plugins installed for the sys
 3. Click **+** and add a row:
    - **Apply:** `Overwrite`
    - **Variable:** `GDAL_DRIVER_PATH`
-   - **Value:** the directory containing `gdal_querydata.so` / `.dylib`. On Homebrew macOS that's `/opt/homebrew/lib/gdalplugins` (Apple Silicon) or `/usr/local/lib/gdalplugins` (Intel); on a Linux RPM install it's typically `/usr/lib64/gdalplugins`.
+   - **Value:** the directory containing `gdal_querydata.so` / `.dylib`. On Homebrew (Apple Silicon) that's `/opt/homebrew/lib/gdalplugins`; on a Linux RPM install it's typically `/usr/lib64/gdalplugins`.
 4. **OK**, then fully quit QGIS (Cmd-Q on macOS, *not* just close the window) and relaunch.
 
 Verify in **Plugins → Python Console**:
