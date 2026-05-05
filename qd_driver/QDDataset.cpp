@@ -361,9 +361,16 @@ void QDDataset::buildBands()
   {
     itsInfo->TimeIndex(t);
     auto* band = new QDRasterBand(this, static_cast<int>(t + 1), t);
-    band->SetDescription(formatTime(itsInfo->Time()).c_str());
-    band->SetMetadataItem("VALID_TIME", formatTime(itsInfo->Time()).c_str());
+    const std::string validTime = formatTime(itsInfo->Time());
+    band->SetDescription(validTime.c_str());
+    band->SetMetadataItem("VALID_TIME", validTime.c_str());
     band->SetMetadataItem("ORIGIN_TIME", formatTime(itsInfo->OriginTime()).c_str());
+    // Expose the timestamp under the keys consumers' temporal controllers
+    // scan for. QGIS's per-band Temporal Properties uses "time"; the netCDF-
+    // style "NETCDF_DIM_time" key is recognised by a wider range of tools.
+    // Both are mirrors of VALID_TIME (kept as-is for any pre-existing consumer).
+    band->SetMetadataItem("time", validTime.c_str());
+    band->SetMetadataItem("NETCDF_DIM_time", validTime.c_str());
     SetBand(static_cast<int>(t + 1), band);
   }
 
