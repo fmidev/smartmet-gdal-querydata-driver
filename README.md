@@ -144,10 +144,15 @@ A `Driver` object means the plugin loaded; `None` means the path is wrong or QGI
 If you need scripted access, the equivalent in **Plugins → Python Console** is:
 
 ```python
-QgsRasterLayer('querydata:"/path/to/forecast.sqd":0:0', '2m Temperature')
+# subdataset URI is querydata:"<path>":<paramIdx>:<levelIdx>
+# — paramIdx / levelIdx are zero-based indexes into the file, not parameter
+# IDs. Run `gdalinfo forecast.sqd` (or open in QGIS once and check the
+# subdataset picker) to see which index maps to which parameter.
+uri = 'querydata:"/path/to/forecast.sqd":3:0'
+QgsRasterLayer(uri, 'my-layer-name')
 ```
 
-The subdataset URIs are also listed under `SUBDATASET_n_NAME` in `gdalinfo forecast.sqd`.
+The full subdataset URIs are listed under `SUBDATASET_n_NAME` in `gdalinfo forecast.sqd`.
 
 ### Python — rasterio (classic 2D)
 
