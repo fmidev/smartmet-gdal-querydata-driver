@@ -1,3 +1,0 @@
-steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: [ 'run', '-v', '/workspace:/src/$REPO_NAME', 'docker.io/fmidev/rpmbuild:el7', '$REPO_NAME' ]

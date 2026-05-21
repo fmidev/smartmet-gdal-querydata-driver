@@ -1,19 +1,22 @@
 # =============================================================================
-# Self-contained build of the QUERYDATA GDAL driver.
+# Build of the QUERYDATA GDAL driver.
 #
-# The driver depends on three smartmet libraries (newbase, macgyver, gis).
-# To keep desktop deployment simple — `git clone && make && sudo make install`
-# on a stock Fedora — those three libraries are vendored in `vendor/` as git
-# subtrees, compiled into a single static archive, and statically linked into
-# the driver. The resulting `gdal_querydata.so` has only Fedora-stock packages
-# (gdal-libs, fmt, geos, proj, etc.) as runtime dependencies — no smartmet RPMs.
+# The driver depends on three smartmet libraries (newbase, macgyver, gis),
+# which must be installed as static libraries plus headers from these RPM
+# packages:
+#
+#   smartmet-library-newbase-static   smartmet-library-newbase-devel
+#   smartmet-library-macgyver-static  smartmet-library-macgyver-devel
+#   smartmet-library-gis-static       smartmet-library-gis-devel
+#
+# The static archives are linked into the plugin so the installed
+# `gdal_querydata.so` carries no runtime dependency on the smartmet shared
+# libraries — only on the stock geospatial stack (gdal, fmt, geos, proj, ...).
 #
 # Targets:
 #   make              build gdal_querydata.so
 #   make install      install plugin into $(GDAL_PLUGIN_DIR)
-#   make rpm          build a self-contained source RPM (vendored sources go in)
-#   make vendor-init  fetch the vendored subtrees if not already present
-#   make vendor-pull  refresh vendored subtrees to the configured upstream ref
+#   make rpm          build the binary RPM
 #   make clean
 # =============================================================================
 
@@ -21,24 +24,6 @@ SUBNAME := qd_driver
 DRIVER  := querydata
 PLUGIN  := gdal_$(DRIVER).so
 SPEC    := smartmet-gdal-querydata-driver
-
-# -- Vendored subtree configuration ------------------------------------------
-# Pin to a tag (e.g. 26.2.4) for reproducible release builds. While iterating
-# upstream, override on the command line: `make NEWBASE_REF=develop`.
-NEWBASE_REF  ?= master
-MACGYVER_REF ?= master
-GIS_REF      ?= master
-
-NEWBASE_URL  := https://github.com/fmidev/smartmet-library-newbase.git
-MACGYVER_URL := https://github.com/fmidev/smartmet-library-macgyver.git
-GIS_URL      := https://github.com/fmidev/smartmet-library-gis.git
-
-# The .spec file from each subtree doubles as a sentinel (existence check) and
-# as the upstream version source for vendor-check-version.
-NEWBASE_SPEC  := vendor/newbase/smartmet-library-newbase.spec
-MACGYVER_SPEC := vendor/macgyver/smartmet-library-macgyver.spec
-GIS_SPEC      := vendor/gis/smartmet-library-gis.spec
-VENDOR_SPECS  := $(NEWBASE_SPEC) $(MACGYVER_SPEC) $(GIS_SPEC)
 
 # -- Compiler and flags ------------------------------------------------------
 # Use pkg-config directly so the build works on any distro that has the stock
@@ -57,23 +42,13 @@ PKG_CONFIG_PATH := $(PKG_CONFIG_PATH):$(subst $(space),:,$(__SBS_PCDIRS))
 export PKG_CONFIG_PATH
 
 PKG_MODULES := gdal fmt geos proj icu-i18n
-# sqlite3 and libpqxx are deliberately omitted: the only vendored translation
-# units that referenced them (EPSGInfo, PostgreSQLConnection*) are excluded
-# from VENDOR_SRCS below. Adding them back here would be a sign that something
-# unexpected is now being pulled in.
 
 CXX      ?= g++
 CXX_STD  ?= c++17
 OPTIMIZE ?= -O2
 
-DEFINES := -DUNIX -D_REENTRANT -DBOOST -DPQXX_HIDE_EXP_OPTIONAL \
-           -DUSE_UNSTABLE_GEOS_CPP_API \
-           -DUSE_OS_TZDB=1 -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0
-# Without the tz-related defines: macgyver's vendored copy of Howard Hinnant's
-# date/tz library tries to fetch the IANA timezone database from ftp.iana.org
-# during static initialisation — which deadlocks dlopen() of the plugin in any
-# environment that doesn't have outbound HTTP. USE_OS_TZDB=1 makes it use the
-# system's /usr/share/zoneinfo instead (tzdata package on Fedora).
+DEFINES  := -DUNIX -D_REENTRANT -DBOOST -DPQXX_HIDE_EXP_OPTIONAL \
+            -DUSE_UNSTABLE_GEOS_CPP_API
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wno-deprecated-declarations
 FLAGS    := -std=$(CXX_STD) -fPIC -fno-omit-frame-pointer -ggdb3 $(OPTIMIZE) \
             -DNDEBUG $(WARNINGS)
@@ -81,134 +56,61 @@ FLAGS    := -std=$(CXX_STD) -fPIC -fno-omit-frame-pointer -ggdb3 $(OPTIMIZE) \
 PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_MODULES))
 PKG_LIBS   := $(shell $(PKG_CONFIG) --libs   $(PKG_MODULES))
 
-# Vendored headers live in vendor/<name>/<name>/. Sources reference siblings
-# via either bare "X.h" or <X.h>; both work as long as the source directory is
-# on the include path.
-INCLUDES := -Iqd_driver \
-            -Ivendor/newbase  -Ivendor/newbase/newbase \
-            -Ivendor/macgyver -Ivendor/macgyver/macgyver \
-            -Ivendor/gis      -Ivendor/gis/gis \
-            $(PKG_CFLAGS)
+# -- Install paths -----------------------------------------------------------
+# $(libdir) is also where we look up the installed smartmet static archives,
+# so on distros that use /usr/lib instead of /usr/lib64 (e.g. ArchLinux,
+# Debian) override with `make libdir=/usr/lib`.
+PREFIX          ?= /usr
+libdir          ?= $(PREFIX)/lib64
+includedir      ?= $(PREFIX)/include
+GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
 
-# Boost components needed by the union of the three libraries.
+# Smartmet headers are all under one root: $(includedir)/smartmet/{newbase,
+# macgyver,gis}/. The driver sources include them as <newbase/X.h> etc.
+INCLUDES := -Iqd_driver -I$(includedir)/smartmet $(PKG_CFLAGS)
+
+# Smartmet static archives. Order matters for ld: newbase pulls gis pulls
+# macgyver (matches the NEEDED chain in the shared-library builds).
+SMARTMET_STATIC_LIBS := \
+    $(libdir)/libsmartmet-newbase.a  \
+    $(libdir)/libsmartmet-gis.a      \
+    $(libdir)/libsmartmet-macgyver.a
+
+# Boost components needed by the union of the three libraries. boost_system
+# is header-only since boost 1.69 (the stub library was dropped entirely in
+# 1.91 on both Fedora and Arch), so it is not listed here.
 BOOST_LIBS := -lboost_regex -lboost_serialization -lboost_chrono \
-              -lboost_iostreams -lboost_thread -lboost_system
+              -lboost_iostreams -lboost_thread
 
-SYSTEM_LIBS := $(PKG_LIBS) $(BOOST_LIBS) -ldouble-conversion -lpthread -lrt
+# sqlite3 and curl show up as NEEDED on the shared builds of gis/macgyver;
+# include them defensively so any pulled-in static object that references
+# them still resolves. --as-needed below drops them again if nothing did.
+SYSTEM_LIBS := $(PKG_LIBS) $(BOOST_LIBS) -ldouble-conversion \
+               -lsqlite3 -lcurl -lpthread -lrt
 
 # -- Sources -----------------------------------------------------------------
 DRIVER_SRCS := $(wildcard $(SUBNAME)/*.cpp)
 DRIVER_OBJS := $(patsubst %.cpp,obj/%.o,$(notdir $(DRIVER_SRCS)))
 
-# Vendored sources: every .cpp in each library's source dir.
-# Skip TemplateFormatter.cpp — it pulls in ctpp2, which our driver doesn't
-# need and which isn't packaged on every distro.
-VENDOR_SRCS := \
-  $(wildcard vendor/newbase/newbase/*.cpp) \
-  $(filter-out \
-      vendor/macgyver/macgyver/TemplateFormatter.cpp \
-      vendor/macgyver/macgyver/PostgreSQLConnection.cpp \
-      vendor/macgyver/macgyver/PostgreSQLConnectionImpl.cpp, \
-      $(wildcard vendor/macgyver/macgyver/*.cpp)) \
-  $(wildcard vendor/macgyver/macgyver/date_time/*.cpp) \
-  $(wildcard vendor/macgyver/macgyver/date_time/date/*.cpp) \
-  $(filter-out \
-      vendor/gis/gis/EPSGInfo.cpp, \
-      $(wildcard vendor/gis/gis/*.cpp))
-# Excluded vendored files and the libraries they would have dragged in:
-#   TemplateFormatter.cpp           — libctpp2 (template engine, unused)
-#   PostgreSQLConnection*.cpp       — libpqxx (DB pooling, unused)
-#   EPSGInfo.cpp                    — libsqlite3 (proj's EPSG db lookup, unused)
-VENDOR_OBJS := $(patsubst %.cpp,obj/vendor/%.o,$(VENDOR_SRCS))
-VENDOR_LIB  := obj/libvendored_smartmet.a
-
-# -- Install paths -----------------------------------------------------------
-PREFIX          ?= /usr
-libdir          ?= $(PREFIX)/lib64
-GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
-
 # -- Top-level targets -------------------------------------------------------
-.PHONY: all debug release clean format install test rpm objdir \
-        vendor-init vendor-pull vendor-check-version
+.PHONY: all debug release clean format install test rpm
 
-all: $(VENDOR_SPECS) $(PLUGIN)
+all: $(PLUGIN)
 
 debug release: all
 
-# -- Subtree management ------------------------------------------------------
-# The .spec from each subtree is the sentinel: if it's missing, fetch the
-# subtree via `git subtree add --squash`. This produces one merge commit per
-# import in the local repo. Inside an RPM build chroot the spec is already
-# present in the unpacked tarball, so these rules don't fire.
-
-$(NEWBASE_SPEC):
-	@echo "==> vendor: adding newbase subtree at $(NEWBASE_REF)"
-	git subtree add --prefix=vendor/newbase  $(NEWBASE_URL)  $(NEWBASE_REF)  --squash
-
-$(MACGYVER_SPEC):
-	@echo "==> vendor: adding macgyver subtree at $(MACGYVER_REF)"
-	git subtree add --prefix=vendor/macgyver $(MACGYVER_URL) $(MACGYVER_REF) --squash
-
-$(GIS_SPEC):
-	@echo "==> vendor: adding gis subtree at $(GIS_REF)"
-	git subtree add --prefix=vendor/gis      $(GIS_URL)      $(GIS_REF)      --squash
-
-vendor-init: $(VENDOR_SPECS)
-
-vendor-pull:
-	git subtree pull --prefix=vendor/newbase  $(NEWBASE_URL)  $(NEWBASE_REF)  --squash
-	git subtree pull --prefix=vendor/macgyver $(MACGYVER_URL) $(MACGYVER_REF) --squash
-	git subtree pull --prefix=vendor/gis      $(GIS_URL)      $(GIS_REF)      --squash
-
-# Cross-check that the version recorded in each spec matches the pinned ref.
-# Skip the comparison when the ref is a branch name rather than a version tag.
-vendor-check-version: $(VENDOR_SPECS)
-	@for triple in \
-	    "$(NEWBASE_REF)|$(NEWBASE_SPEC)|newbase" \
-	    "$(MACGYVER_REF)|$(MACGYVER_SPEC)|macgyver" \
-	    "$(GIS_REF)|$(GIS_SPEC)|gis"; do \
-	  ref=$${triple%%|*}; rest=$${triple#*|}; spec=$${rest%%|*}; name=$${rest##*|}; \
-	  case "$$ref" in \
-	    [0-9]*) \
-	      ver=$$(grep -E '^Version:' "$$spec" | head -1 | awk '{print $$2}'); \
-	      if [ "$$ver" != "$$ref" ]; then \
-	        echo "ERROR: $$name pinned at $$ref but vendored copy is $$ver"; \
-	        echo "       run 'make vendor-pull' to refresh"; \
-	        exit 1; \
-	      fi;; \
-	    *) echo "==> $$name on branch ref '$$ref' (skipping version check)";; \
-	  esac; \
-	done
-
 # -- Build rules -------------------------------------------------------------
-$(PLUGIN): $(DRIVER_OBJS) $(VENDOR_LIB)
+$(PLUGIN): $(DRIVER_OBJS) $(SMARTMET_STATIC_LIBS)
 	$(CXX) $(FLAGS) -shared -rdynamic -o $@ $(DRIVER_OBJS) \
-	  $(VENDOR_LIB) -Wl,--as-needed $(SYSTEM_LIBS) -Wl,--no-as-needed
+	  $(SMARTMET_STATIC_LIBS) -Wl,--as-needed $(SYSTEM_LIBS) -Wl,--no-as-needed
 	@echo "Checking $@ for unresolved references"
 	@if ldd -r $@ 2>&1 | c++filt | grep ^undefined\ symbol | \
 	   grep -Pv ':\ __(?:(?:a|t|ub)san_|sanitizer_)'; \
 	then rm -v $@; exit 1; fi
 
-# Vendored objects are linked as a normal static archive (no --whole-archive),
-# so the linker only pulls in objects that resolve symbols actually used by the
-# driver. Translation units that reference excluded symbols (e.g. anything
-# transitively touching TemplateFormatter / ctpp2) are dropped silently — which
-# is what we want.
-
-$(VENDOR_LIB): $(VENDOR_OBJS)
-	$(AR) crs $@ $^
-
 obj/%.o: $(SUBNAME)/%.cpp
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
-
-obj/vendor/%.o: %.cpp
-	@mkdir -p $(@D)
-	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
-
-# NFmiEnumConverterInit has a huge static-init expression; -O2 makes it slow
-# to compile. Mirror newbase's own Makefile workaround for gcc.
-obj/vendor/vendor/newbase/newbase/NFmiEnumConverterInit.o: OPTIMIZE := -O0
 
 # -- Auxiliary targets -------------------------------------------------------
 clean:
@@ -227,26 +129,11 @@ test: $(PLUGIN)
 	bash test/smoke.sh
 
 # -- RPM target --------------------------------------------------------------
-# Build a source tarball that contains everything rpmbuild needs, including the
-# vendored library sources, but excluding things that bloat the tarball without
-# being used (Python bindings, test data, .git metadata, build artefacts, the
-# vendored libraries' own Makefiles which we never recurse into).
-rpm: vendor-check-version clean $(SPEC).spec
+rpm: clean $(SPEC).spec
 	rm -f $(SPEC).tar.gz
 	tar -czf $(SPEC).tar.gz \
 	    --transform "s,^,$(SPEC)/," \
 	    --exclude-vcs \
-	    --exclude="vendor/*/python" \
-	    --exclude="vendor/*/test" \
-	    --exclude="vendor/*/obj" \
-	    --exclude="vendor/*/Makefile" \
-	    --exclude="vendor/*/Doxyfile" \
-	    --exclude="vendor/*/.circleci" \
-	    --exclude="vendor/*/.github" \
-	    --exclude="vendor/*/CLAUDE.md" \
-	    --exclude="vendor/*/README.md" \
-	    --exclude="vendor/*/.clang-format" \
-	    --exclude="vendor/*/.gitignore" \
 	    --exclude="obj" --exclude="plugins" --exclude="*.so" \
 	    *
 	rpmbuild -tb $(SPEC).tar.gz $(RPMBUILD_OPT)
@@ -254,4 +141,3 @@ rpm: vendor-check-version clean $(SPEC).spec
 
 # -- Auto-generated dependency files -----------------------------------------
 -include $(DRIVER_OBJS:.o=.d)
--include $(VENDOR_OBJS:.o=.d)

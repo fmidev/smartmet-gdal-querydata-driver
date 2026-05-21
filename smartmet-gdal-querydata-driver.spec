@@ -7,7 +7,7 @@
 
 Summary: GDAL driver for FMI QueryData (.sqd) files
 Name: %{SPECNAME}
-Version: 26.5.3
+Version: 26.5.21
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -15,11 +15,10 @@ URL: https://github.com/fmidev/smartmet-gdal-querydata-driver
 Source: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-# This package vendors the smartmet libraries (newbase, macgyver, gis) as git
-# subtrees under vendor/ and statically links them into the plugin .so. The
-# resulting RPM has *no* runtime dependency on smartmet-library-* packages —
-# only on Fedora-stock libraries — which makes it installable on a fresh
-# Fedora desktop alongside QGIS without pulling in the FMI build environment.
+# The smartmet libraries (newbase, macgyver, gis) are statically linked into
+# the plugin from their *-static / *-devel packages, so the installed
+# gdal_querydata.so has no runtime dependency on smartmet-library-* shared
+# objects — only on Fedora-stock libraries.
 
 BuildRequires: gcc-c++
 BuildRequires: make
@@ -31,15 +30,21 @@ BuildRequires: fmt-devel
 BuildRequires: libicu-devel
 BuildRequires: boost-devel
 BuildRequires: double-conversion-devel
-# Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
-# unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
+BuildRequires: sqlite-devel
+BuildRequires: libcurl-devel
+BuildRequires: smartmet-library-newbase-devel
+BuildRequires: smartmet-library-newbase-static
+BuildRequires: smartmet-library-macgyver-devel
+BuildRequires: smartmet-library-macgyver-static
+BuildRequires: smartmet-library-gis-devel
+BuildRequires: smartmet-library-gis-static
 
 # Runtime requirements are deliberately tight: this list mirrors the NEEDED
 # entries actually present in the .so (verify with `objdump -p .so | grep
-# NEEDED`). The vendored libraries' translation units that would have dragged
-# in libpqxx, libsqlite3, etc., are excluded from VENDOR_SRCS in the Makefile.
-# geos/proj/icu/double-conversion are reachable transitively via libgdal but
-# the driver itself never references them, so --as-needed drops them.
+# NEEDED`). The smartmet libraries are statically linked, so their shared
+# variants are not required at runtime. geos/proj/icu/double-conversion are
+# reachable transitively via libgdal but the driver itself never references
+# them, so --as-needed drops them.
 Requires: gdal312-libs
 Requires: fmt-libs
 Requires: boost-iostreams
@@ -62,7 +67,7 @@ NetCDF / Zarr workflows, and supports CreateCopy for round-tripping
 single-parameter rasters back to .sqd via gdal_translate.
 
 QueryData is a legacy FMI-internal format and is not part of upstream
-GDAL. The driver bundles its three smartmet C++ library dependencies
+GDAL. The plugin links its three smartmet C++ library dependencies
 (newbase, macgyver, gis) statically, so installing this RPM does not
 pull any FMI runtime libraries onto the system.
 
@@ -84,6 +89,11 @@ rm -rf $RPM_BUILD_ROOT
 %{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
 
 %changelog
+* Thu May 21 2026 Andris Pavenis <andris.pavenis@fmi.fi> - 26.5.21-1.fmi
+- Build against installed smartmet-library-{newbase,macgyver,gis}-static
+  packages instead of vendored git subtrees. The plugin RPM still has no
+  smartmet-library shared-object runtime dependencies.
+
 * Sun May 3 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.3-1.fmi
 - Vendored newbase, macgyver, gis as git subtrees and statically link them.
   The plugin RPM now has no smartmet-library runtime dependencies.
