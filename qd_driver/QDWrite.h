@@ -1,11 +1,21 @@
 #pragma once
 
 #include <gdal_priv.h>
+#include <gdal_version.h>
 
 namespace SmartMet
 {
 namespace GdalQueryData
 {
+// GDAL 3.13 changed GDALDriver::CreateCopyCallback's options parameter from
+// `char**` to `CSLConstList` (`const char* const*`). To stay compilable on
+// both, alias the parameter type to whatever the local GDAL expects.
+#if GDAL_VERSION_NUM >= GDAL_COMPUTE_VERSION(3, 13, 0)
+using CreateCopyOptList = CSLConstList;
+#else
+using CreateCopyOptList = char**;
+#endif
+
 // CreateCopy: write a GDAL source dataset out as a QueryData (.sqd) file. The
 // source must be a regular grid (no rotation), have a usable SRS, and a single
 // parameter (one band per time step). Returns a freshly opened read-only handle
@@ -20,7 +30,8 @@ namespace GdalQueryData
 //   START_TIME       ISO 8601 — first band's valid time (default: from band metadata)
 //   TIMESTEP_MINUTES interval between consecutive bands (default: from band metadata)
 GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int bStrict,
-                        char** papszOptions, GDALProgressFunc pfnProgress, void* pProgressData);
+                        CreateCopyOptList papszOptions, GDALProgressFunc pfnProgress,
+                        void* pProgressData);
 
 }  // namespace GdalQueryData
 }  // namespace SmartMet

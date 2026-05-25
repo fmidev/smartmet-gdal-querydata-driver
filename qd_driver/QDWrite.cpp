@@ -91,7 +91,8 @@ const char* fetchOpt(CSLConstList options, GDALDataset* src, const char* key)
 }  // namespace
 
 GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bStrict*/,
-                        char** papszOptions, GDALProgressFunc pfnProgress, void* pProgressData)
+                        CreateCopyOptList papszOptions, GDALProgressFunc pfnProgress,
+                        void* pProgressData)
 {
   if (poSrcDS == nullptr || pszFilename == nullptr)
   {

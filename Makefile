@@ -79,11 +79,12 @@ PKG_LIBS   := $(shell $(PKG_CONFIG) --libs   $(PKG_MODULES))
 
 # Vendored headers live in vendor/<name>/<name>/. Sources reference siblings
 # via either bare "X.h" or <X.h>; both work as long as the source directory is
-# on the include path.
+# on the include path. gis also ships a side directory `include/` with single-
+# header third-party libs (ankerl::unordered_dense) it pulls in as <ankerl/…>.
 INCLUDES := -Iqd_driver \
             -Ivendor/newbase  -Ivendor/newbase/newbase \
             -Ivendor/macgyver -Ivendor/macgyver/macgyver \
-            -Ivendor/gis      -Ivendor/gis/gis \
+            -Ivendor/gis      -Ivendor/gis/gis      -Ivendor/gis/include \
             $(PKG_CFLAGS)
 
 # Boost components needed by the union of the three libraries.
