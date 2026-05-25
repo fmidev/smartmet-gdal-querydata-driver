@@ -15,6 +15,17 @@ URL: https://github.com/fmidev/smartmet-gdal-querydata-driver
 Source: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
+# The driver depends on the same Boost version as the vendored smartmet libraries
+# in case of RHEL/RockyLinux 8 (note, that it must be downloaded from
+# smartmet-open-ext repository, but not the EPEL one)
+# On RHEL/RockyLinux 9 and newer, the stock boost package is new enough to be
+
+%if 0%{?rhel} && 0%{rhel} < 9
+%define smartmet_boost boost169
+%else
+%define smartmet_boost boost
+%endif
+
 # This package vendors the smartmet libraries (newbase, macgyver, gis) as git
 # submodules under vendor/ and statically links them into the plugin .so. The
 # source tarball ships the submodule working trees so rpmbuild does not need
@@ -31,7 +42,7 @@ BuildRequires: geos313-devel
 BuildRequires: proj97-devel
 BuildRequires: fmt-devel
 BuildRequires: libicu-devel
-BuildRequires: boost-devel
+BuildRequires: %{smartmet_boost}-devel
 BuildRequires: double-conversion-devel
 # Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
 # unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
@@ -44,8 +55,8 @@ BuildRequires: double-conversion-devel
 # the driver itself never references them, so --as-needed drops them.
 Requires: gdal312-libs
 Requires: fmt-libs
-Requires: boost-iostreams
-Requires: boost-thread
+Requires: %{smartmet_boost}-iostreams
+Requires: %{smartmet_boost}-thread
 # tzdata is a data-only dep, read at runtime by Howard Hinnant's date library
 # (USE_OS_TZDB=1) from /usr/share/zoneinfo.
 Requires: tzdata

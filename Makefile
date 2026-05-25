@@ -102,7 +102,21 @@ INCLUDES := -Iqd_driver \
 BOOST_LIBS := -lboost_regex -lboost_serialization -lboost_chrono \
               -lboost_iostreams -lboost_thread
 
-SYSTEM_LIBS := $(PKG_LIBS) $(BOOST_LIBS) -ldouble-conversion -lpthread -lrt
+# When building for RHEL/RockyLinux 8, the oldest supported distro,
+# use boost169 from smartmet-open-ext (EPEL version should not be used)
+ifneq ($(wildcard /usr/include/boost169/boost/version.hpp),)
+ifneq ($(wildcard /usr/lib64/boost169/libboost_iostreams.so),)
+  INCLUDES += -I/usr/include/boost169
+  BOOST_LIBS := -L/usr/lib64/boost169 $(BOOST_LIBS)
+endif
+endif
+
+# FIXME: we only need libstdc++fs in case of RHEL/Rocky 8's old g++ (which
+# lacks std::filesystem in the main library), but it's simpler to always link
+# it than to detect the g++ version and conditionally add it here. If we cared
+# about build time we could split the driver into multiple translation units
+# and only link libstdc++fs into the ones that need it.
+SYSTEM_LIBS := $(PKG_LIBS) $(BOOST_LIBS) -lstdc++fs -ldouble-conversion -lpthread -lrt
 
 # -- Sources -----------------------------------------------------------------
 DRIVER_SRCS := $(wildcard $(SUBNAME)/*.cpp)
