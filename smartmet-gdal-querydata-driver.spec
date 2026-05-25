@@ -26,6 +26,16 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 %define smartmet_boost boost
 %endif
 
+%if 0%{?rhel} && ((%{rhel} == 8) || (%{rhel} == 9) || (0%{rhel} == 10))
+%define GDAL gdal312
+%define GEOS geos313
+%define PROJ proj97
+%else
+%define GDAL gdal
+%define GEOS geos
+%define PROJ proj
+%endif
+
 # This package vendors the smartmet libraries (newbase, macgyver, gis) as git
 # submodules under vendor/ and statically links them into the plugin .so. The
 # source tarball ships the submodule working trees so rpmbuild does not need
@@ -37,13 +47,14 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildRequires: gcc-c++
 BuildRequires: make
 BuildRequires: rpm-build
-BuildRequires: gdal312-devel
-BuildRequires: geos313-devel
-BuildRequires: proj97-devel
+BuildRequires: %{GDAL}-devel
+BuildRequires: %{GEOS}-devel
+BuildRequires: %{PROJ}-devel
 BuildRequires: fmt-devel
 BuildRequires: libicu-devel
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: double-conversion-devel
+BuildRequires: ctpp2-devel
 # Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
 # unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
 
@@ -53,7 +64,7 @@ BuildRequires: double-conversion-devel
 # in libpqxx, libsqlite3, etc., are excluded from VENDOR_SRCS in the Makefile.
 # geos/proj/icu/double-conversion are reachable transitively via libgdal but
 # the driver itself never references them, so --as-needed drops them.
-Requires: gdal312-libs
+Requires: %{GDAL}-libs
 Requires: fmt-libs
 Requires: %{smartmet_boost}-iostreams
 Requires: %{smartmet_boost}-thread
