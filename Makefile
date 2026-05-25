@@ -41,7 +41,6 @@ SPEC    := smartmet-gdal-querydata-driver
 NEWBASE_SENTINEL  := vendor/newbase/newbase/NFmiArea.h
 MACGYVER_SENTINEL := vendor/macgyver/macgyver/StringConversion.h
 GIS_SENTINEL      := vendor/gis/gis/CoordinateMatrix.h
-VENDOR_SENTINELS  := $(NEWBASE_SENTINEL) $(MACGYVER_SENTINEL) $(GIS_SENTINEL)
 
 NEWBASE_SPEC  := vendor/newbase/smartmet-library-newbase.spec
 MACGYVER_SPEC := vendor/macgyver/smartmet-library-macgyver.spec
@@ -153,30 +152,39 @@ GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
 .PHONY: all debug release clean format install test rpm objdir \
         vendor-init vendor-pull vendor-check-version
 
-all: $(VENDOR_SENTINELS) $(PLUGIN)
+all: $(SUBMODULE_INIT_STAMP) $(PLUGIN)
 
 debug release: all
 
 # -- Submodule management ----------------------------------------------------
-# Each sentinel header above is the existence check: if it's missing, the
-# submodule isn't initialised, so run `git submodule update --init`. Inside
-# the RPM build chroot the sentinel is present in the unpacked tarball (the
-# vendor source dirs are shipped as-is), so these rules don't fire — and the
-# spec files, which are NOT in the tarball, are never touched.
+# A single stamp file funnels submodule init: under `make -j` it runs once,
+# avoiding the .git/config lock race seen in CircleCI -j8 with three parallel
+# `git submodule update --init` invocations ("could not lock config file:
+# File exists"). The recipe also no-ops safely inside the rpmbuild chroot —
+# there is no .git there, but the sentinel headers are already present in
+# the unpacked tarball, so the existence check below short-circuits the git
+# call and just touches the stamp.
+#
+# Targets that need submodules initialised (all, vendor-init, vendor-pull,
+# vendor-check-version) depend on the stamp directly, not on the individual
+# sentinel files — that way the dependency edges in the build graph all
+# converge to one node and Make never even considers running the recipe in
+# parallel.
 
-$(NEWBASE_SENTINEL):
-	@echo "==> vendor: initialising newbase submodule"
-	git submodule update --init vendor/newbase
+SUBMODULE_INIT_STAMP := obj/.submodules-initialised
 
-$(MACGYVER_SENTINEL):
-	@echo "==> vendor: initialising macgyver submodule"
-	git submodule update --init vendor/macgyver
+$(SUBMODULE_INIT_STAMP):
+	@mkdir -p $(@D)
+	@if [ -f "$(NEWBASE_SENTINEL)" ] && [ -f "$(MACGYVER_SENTINEL)" ] \
+	    && [ -f "$(GIS_SENTINEL)" ]; then \
+	  : ; \
+	else \
+	  echo "==> vendor: initialising submodules (newbase macgyver gis)"; \
+	  git submodule update --init vendor/newbase vendor/macgyver vendor/gis; \
+	fi
+	@touch $@
 
-$(GIS_SENTINEL):
-	@echo "==> vendor: initialising gis submodule"
-	git submodule update --init vendor/gis
-
-vendor-init: $(VENDOR_SENTINELS)
+vendor-init: $(SUBMODULE_INIT_STAMP)
 
 # Advance each submodule to the tip of its configured tracking branch
 # (set per submodule in .gitmodules via `branch =`). After this, the gitlink
@@ -191,7 +199,7 @@ vendor-pull: vendor-init
 # tags (e.g. master, develop) are skipped. Host-only: this target reads the
 # vendored .spec files, which are deliberately excluded from the rpmbuild
 # source tarball.
-vendor-check-version: $(VENDOR_SENTINELS)
+vendor-check-version: $(SUBMODULE_INIT_STAMP)
 	@for pair in \
 	    "$(NEWBASE_SPEC)|vendor/newbase|newbase" \
 	    "$(MACGYVER_SPEC)|vendor/macgyver|macgyver" \
@@ -228,11 +236,11 @@ $(PLUGIN): $(DRIVER_OBJS) $(VENDOR_LIB)
 $(VENDOR_LIB): $(VENDOR_OBJS)
 	$(AR) crs $@ $^
 
-obj/%.o: $(SUBNAME)/%.cpp
+obj/%.o: $(SUBNAME)/%.cpp | $(SUBMODULE_INIT_STAMP)
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
 
-obj/vendor/%.o: %.cpp
+obj/vendor/%.o: %.cpp | $(SUBMODULE_INIT_STAMP)
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
 
