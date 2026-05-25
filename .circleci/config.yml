@@ -1,0 +1,42 @@
+version: 2.1
+jobs:
+  build-rhel8:
+    docker:
+      - image: fmidev/smartmet-cibase-8:latest
+    resource_class: xlarge
+    environment:
+      RPM_BUILD_NCPUS: 8
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: ci-build deps
+      - run:
+          name: Build RPM
+          command: ci-build rpm
+      - persist_to_workspace:
+          root: /dist
+          paths: ./*.rpm
+  build-rhel10:
+    docker:
+      - image: quay.io/fmi/smartmet-cibase-10:latest
+    resource_class: xlarge
+    environment:
+      RPM_BUILD_NCPUS: 8
+    steps:
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: ci-build deps
+      - run:
+          name: Build RPM
+          command: ci-build rpm
+      - persist_to_workspace:
+          root: /dist
+          paths: ./*.rpm
+workflows:
+  version: 2.1
+  build-test:
+    jobs:
+      - build-rhel8
+      - build-rhel10
