@@ -92,7 +92,7 @@ INCLUDES := -Iqd_driver \
 
 # Boost components needed by the union of the three libraries.
 BOOST_LIBS := -lboost_regex -lboost_serialization -lboost_chrono \
-              -lboost_iostreams -lboost_thread -lboost_system
+              -lboost_iostreams -lboost_thread
 
 SYSTEM_LIBS := $(PKG_LIBS) $(BOOST_LIBS) -ldouble-conversion -lpthread -lrt
 
