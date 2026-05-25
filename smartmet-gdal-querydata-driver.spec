@@ -7,7 +7,7 @@
 
 Summary: GDAL driver for FMI QueryData (.sqd) files
 Name: %{SPECNAME}
-Version: 26.5.3
+Version: 26.5.25
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -113,6 +113,12 @@ rm -rf $RPM_BUILD_ROOT
 %{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
 
 %changelog
+* Mon May 25 2026 Andreas Pavenis <andris.pavenis@fmi.fi> - 26.5.25-1.fmi
+- Fix building RPMs
+- Use GIT submodules for vendored libraries instead of copying source files,
+  and statically link them into the plugin .so. The resulting
+  RPM has no runtime dependencies on smartmet-library packages.
+
 * Sun May 3 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.3-1.fmi
 - Vendored newbase, macgyver, gis as git submodules and statically link them.
   The plugin RPM now has no smartmet-library runtime dependencies.
