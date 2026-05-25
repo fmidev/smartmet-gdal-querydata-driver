@@ -101,6 +101,8 @@ INCLUDES := -Iqd_driver \
 BOOST_LIBS := -lboost_regex -lboost_serialization -lboost_chrono \
               -lboost_iostreams -lboost_thread
 
+#  Special handling of some dependencies for RHEL/RockyLinux
+#
 # When building for RHEL/RockyLinux 8, the oldest supported distro,
 # use boost169 from smartmet-open-ext (EPEL version should not be used)
 ifneq ($(wildcard /usr/include/boost169/boost/version.hpp),)
@@ -109,6 +111,8 @@ ifneq ($(wildcard /usr/lib64/boost169/libboost_iostreams.so),)
   BOOST_LIBS := -L/usr/lib64/boost169 $(BOOST_LIBS)
 endif
 endif
+
+# End of RHEL/RockyLinux special handling
 
 # FIXME: we only need libstdc++fs in case of RHEL/Rocky 8's old g++ (which
 # lacks std::filesystem in the main library), but it's simpler to always link
