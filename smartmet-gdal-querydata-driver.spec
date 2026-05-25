@@ -16,10 +16,12 @@ Source: %{name}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 # This package vendors the smartmet libraries (newbase, macgyver, gis) as git
-# subtrees under vendor/ and statically links them into the plugin .so. The
-# resulting RPM has *no* runtime dependency on smartmet-library-* packages —
-# only on Fedora-stock libraries — which makes it installable on a fresh
-# Fedora desktop alongside QGIS without pulling in the FMI build environment.
+# submodules under vendor/ and statically links them into the plugin .so. The
+# source tarball ships the submodule working trees so rpmbuild does not need
+# network access. The resulting RPM has *no* runtime dependency on
+# smartmet-library-* packages — only on Fedora-stock libraries — which makes
+# it installable on a fresh Fedora desktop alongside QGIS without pulling in
+# the FMI build environment.
 
 BuildRequires: gcc-c++
 BuildRequires: make
@@ -85,7 +87,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %changelog
 * Sun May 3 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.3-1.fmi
-- Vendored newbase, macgyver, gis as git subtrees and statically link them.
+- Vendored newbase, macgyver, gis as git submodules and statically link them.
   The plugin RPM now has no smartmet-library runtime dependencies.
 
 * Fri May 1 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.5.1-1.fmi

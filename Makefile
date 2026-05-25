@@ -2,18 +2,19 @@
 # Self-contained build of the QUERYDATA GDAL driver.
 #
 # The driver depends on three smartmet libraries (newbase, macgyver, gis).
-# To keep desktop deployment simple — `git clone && make && sudo make install`
-# on a stock Fedora — those three libraries are vendored in `vendor/` as git
-# subtrees, compiled into a single static archive, and statically linked into
-# the driver. The resulting `gdal_querydata.so` has only Fedora-stock packages
-# (gdal-libs, fmt, geos, proj, etc.) as runtime dependencies — no smartmet RPMs.
+# To keep desktop deployment simple — `git clone --recurse-submodules && make
+# && sudo make install` on a stock Fedora — those three libraries are vendored
+# in `vendor/` as git submodules, compiled into a single static archive, and
+# statically linked into the driver. The resulting `gdal_querydata.so` has only
+# Fedora-stock packages (gdal-libs, fmt, geos, proj, etc.) as runtime
+# dependencies — no smartmet RPMs.
 #
 # Targets:
 #   make              build gdal_querydata.so
 #   make install      install plugin into $(GDAL_PLUGIN_DIR)
 #   make rpm          build a self-contained source RPM (vendored sources go in)
-#   make vendor-init  fetch the vendored subtrees if not already present
-#   make vendor-pull  refresh vendored subtrees to the configured upstream ref
+#   make vendor-init  initialise the vendored submodules if not already present
+#   make vendor-pull  advance vendored submodules to the configured upstream ref
 #   make clean
 # =============================================================================
 
@@ -22,19 +23,14 @@ DRIVER  := querydata
 PLUGIN  := gdal_$(DRIVER).so
 SPEC    := smartmet-gdal-querydata-driver
 
-# -- Vendored subtree configuration ------------------------------------------
-# Pin to a tag (e.g. 26.2.4) for reproducible release builds. While iterating
-# upstream, override on the command line: `make NEWBASE_REF=develop`.
-NEWBASE_REF  ?= master
-MACGYVER_REF ?= master
-GIS_REF      ?= master
-
-NEWBASE_URL  := https://github.com/fmidev/smartmet-library-newbase.git
-MACGYVER_URL := https://github.com/fmidev/smartmet-library-macgyver.git
-GIS_URL      := https://github.com/fmidev/smartmet-library-gis.git
-
-# The .spec file from each subtree doubles as a sentinel (existence check) and
-# as the upstream version source for vendor-check-version.
+# -- Vendored submodule configuration ----------------------------------------
+# The exact commit each submodule is pinned to lives in the git index (see
+# `git submodule status`); the tracking branch is in .gitmodules. To pin a
+# different ref for a release build, check out that ref inside the submodule
+# directory and commit the gitlink update in this repo.
+#
+# The .spec file from each submodule doubles as a sentinel (existence check)
+# and as the upstream version source for vendor-check-version.
 NEWBASE_SPEC  := vendor/newbase/smartmet-library-newbase.spec
 MACGYVER_SPEC := vendor/macgyver/smartmet-library-macgyver.spec
 GIS_SPEC      := vendor/gis/smartmet-library-gis.spec
@@ -135,39 +131,44 @@ all: $(VENDOR_SPECS) $(PLUGIN)
 
 debug release: all
 
-# -- Subtree management ------------------------------------------------------
-# The .spec from each subtree is the sentinel: if it's missing, fetch the
-# subtree via `git subtree add --squash`. This produces one merge commit per
-# import in the local repo. Inside an RPM build chroot the spec is already
-# present in the unpacked tarball, so these rules don't fire.
+# -- Submodule management ----------------------------------------------------
+# The .spec from each submodule is the sentinel: if it's missing, initialise
+# the submodule. Inside an RPM build chroot the spec is already present in the
+# unpacked tarball (the tarball ships the submodule working trees, not the
+# .git pointer), so these rules don't fire.
 
 $(NEWBASE_SPEC):
-	@echo "==> vendor: adding newbase subtree at $(NEWBASE_REF)"
-	git subtree add --prefix=vendor/newbase  $(NEWBASE_URL)  $(NEWBASE_REF)  --squash
+	@echo "==> vendor: initialising newbase submodule"
+	git submodule update --init vendor/newbase
 
 $(MACGYVER_SPEC):
-	@echo "==> vendor: adding macgyver subtree at $(MACGYVER_REF)"
-	git subtree add --prefix=vendor/macgyver $(MACGYVER_URL) $(MACGYVER_REF) --squash
+	@echo "==> vendor: initialising macgyver submodule"
+	git submodule update --init vendor/macgyver
 
 $(GIS_SPEC):
-	@echo "==> vendor: adding gis subtree at $(GIS_REF)"
-	git subtree add --prefix=vendor/gis      $(GIS_URL)      $(GIS_REF)      --squash
+	@echo "==> vendor: initialising gis submodule"
+	git submodule update --init vendor/gis
 
 vendor-init: $(VENDOR_SPECS)
 
-vendor-pull:
-	git subtree pull --prefix=vendor/newbase  $(NEWBASE_URL)  $(NEWBASE_REF)  --squash
-	git subtree pull --prefix=vendor/macgyver $(MACGYVER_URL) $(MACGYVER_REF) --squash
-	git subtree pull --prefix=vendor/gis      $(GIS_URL)      $(GIS_REF)      --squash
+# Advance each submodule to the tip of its configured tracking branch
+# (set per submodule in .gitmodules via `branch =`). After this, the gitlink
+# in the index will differ from HEAD until you `git add vendor/<name>` and
+# commit. To pin to a tag instead, check out the tag inside the submodule
+# directory manually and commit the gitlink update.
+vendor-pull: vendor-init
+	git submodule update --remote --merge vendor/newbase vendor/macgyver vendor/gis
 
-# Cross-check that the version recorded in each spec matches the pinned ref.
-# Skip the comparison when the ref is a branch name rather than a version tag.
+# Cross-check that the version recorded in each spec matches the version-like
+# tracking branch configured in .gitmodules. Branch names that aren't version
+# tags (e.g. master, develop) are skipped.
 vendor-check-version: $(VENDOR_SPECS)
-	@for triple in \
-	    "$(NEWBASE_REF)|$(NEWBASE_SPEC)|newbase" \
-	    "$(MACGYVER_REF)|$(MACGYVER_SPEC)|macgyver" \
-	    "$(GIS_REF)|$(GIS_SPEC)|gis"; do \
-	  ref=$${triple%%|*}; rest=$${triple#*|}; spec=$${rest%%|*}; name=$${rest##*|}; \
+	@for pair in \
+	    "$(NEWBASE_SPEC)|vendor/newbase|newbase" \
+	    "$(MACGYVER_SPEC)|vendor/macgyver|macgyver" \
+	    "$(GIS_SPEC)|vendor/gis|gis"; do \
+	  spec=$${pair%%|*}; rest=$${pair#*|}; path=$${rest%%|*}; name=$${rest##*|}; \
+	  ref=$$(git config -f .gitmodules submodule.$$path.branch 2>/dev/null); \
 	  case "$$ref" in \
 	    [0-9]*) \
 	      ver=$$(grep -E '^Version:' "$$spec" | head -1 | awk '{print $$2}'); \

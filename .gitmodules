@@ -1,0 +1,12 @@
+[submodule "vendor/newbase"]
+	path = vendor/newbase
+	url = https://github.com/fmidev/smartmet-library-newbase.git
+	branch = master
+[submodule "vendor/macgyver"]
+	path = vendor/macgyver
+	url = https://github.com/fmidev/smartmet-library-macgyver.git
+	branch = master
+[submodule "vendor/gis"]
+	path = vendor/gis
+	url = https://github.com/fmidev/smartmet-library-gis.git
+	branch = master
