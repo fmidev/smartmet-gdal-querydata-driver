@@ -248,6 +248,7 @@ rpm: vendor-check-version clean $(SPEC).spec
 	    --exclude="vendor/*/.clang-format" \
 	    --exclude="vendor/*/.gitignore" \
 	    --exclude="obj" --exclude="plugins" --exclude="*.so" \
+		--exclude="vendor/*/smartmet-library-*.spec" \
 	    *
 	rpmbuild -tb $(SPEC).tar.gz $(RPMBUILD_OPT)
 	rm -f $(SPEC).tar.gz
