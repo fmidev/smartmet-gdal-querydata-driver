@@ -7,3 +7,4 @@ plugins/
 *~
 *.tar.gz
 test/output/
+.submodules-initialised

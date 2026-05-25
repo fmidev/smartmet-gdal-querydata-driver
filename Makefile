@@ -170,11 +170,16 @@ debug release: all
 # sentinel files — that way the dependency edges in the build graph all
 # converge to one node and Make never even considers running the recipe in
 # parallel.
+#
+# The stamp lives at the repo top level rather than in obj/ because `make
+# rpm` runs `vendor-check-version` and `clean` as parallel prereqs under
+# -j: clean's `rm -rf obj` would otherwise race with the stamp recipe's
+# `mkdir obj` / `touch obj/.stamp` and the touch would fail (seen on
+# RHEL/Rocky 8 with `circleci local execute build-rhel8`).
 
-SUBMODULE_INIT_STAMP := obj/.submodules-initialised
+SUBMODULE_INIT_STAMP := .submodules-initialised
 
 $(SUBMODULE_INIT_STAMP):
-	@mkdir -p $(@D)
 	@if [ -f "$(NEWBASE_SENTINEL)" ] && [ -f "$(MACGYVER_SENTINEL)" ] \
 	    && [ -f "$(GIS_SENTINEL)" ]; then \
 	  : ; \
@@ -287,6 +292,7 @@ rpm: vendor-check-version clean $(SPEC).spec
 	    --exclude="vendor/*/.gitignore" \
 	    --exclude="vendor/*/smartmet-library-*.spec*" \
 	    --exclude="obj" --exclude="plugins" --exclude="*.so" \
+	    --exclude=".submodules-initialised" \
 	    *
 	rpmbuild -tb $(SPEC).tar.gz $(RPMBUILD_OPT)
 	rm -f $(SPEC).tar.gz
