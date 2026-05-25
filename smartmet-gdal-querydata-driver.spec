@@ -55,14 +55,9 @@ BuildRequires: libicu-devel
 BuildRequires: %{smartmet_boost}-devel
 BuildRequires: double-conversion-devel
 BuildRequires: ctpp2-devel
-
-# GDAL-3.12 requires newer versions of libtiff, sqlite, and libcurl than are available in RHEL/Rocky 8, so add explicit BuildRequires for those to ensure the SCL versions are used.
-# RHEL/Rocky 9's stock versions are new enough that this is not necessary.
-%if 0%{?rhel} && 0%{rhel} < 9
 BuildRequires: libtiff-devel >= 4.1
 BuildRequires: sqlite-devel >= 3.22.0
 BuildRequires: libcurl-devel >= 7.68.0
-%endif
 
 # Fedora alternatives if the gdal312/geos313/proj97 side-by-side packages are
 # unavailable: gdal-devel, geos-devel, proj-devel. Pick one set or the other.
