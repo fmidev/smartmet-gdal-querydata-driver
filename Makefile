@@ -29,12 +29,23 @@ SPEC    := smartmet-gdal-querydata-driver
 # different ref for a release build, check out that ref inside the submodule
 # directory and commit the gitlink update in this repo.
 #
-# The .spec file from each submodule doubles as a sentinel (existence check)
-# and as the upstream version source for vendor-check-version.
+# Two file lists per submodule:
+#   *_SENTINEL — a stable deep header used to detect whether the submodule
+#                is initialised. Must remain present in the RPM source tarball
+#                (i.e. NOT in the tarball exclude list below). Picked so a
+#                fresh clone without --recurse-submodules has the file missing.
+#   *_SPEC     — the upstream library .spec, used only by vendor-check-version
+#                to read the Version: line. Excluded from the rpmbuild tarball
+#                (rpmbuild -tb refuses multiple .spec files), so this path is
+#                only resolvable on the host, not inside the rpmbuild chroot.
+NEWBASE_SENTINEL  := vendor/newbase/newbase/NFmiArea.h
+MACGYVER_SENTINEL := vendor/macgyver/macgyver/StringConversion.h
+GIS_SENTINEL      := vendor/gis/gis/CoordinateMatrix.h
+VENDOR_SENTINELS  := $(NEWBASE_SENTINEL) $(MACGYVER_SENTINEL) $(GIS_SENTINEL)
+
 NEWBASE_SPEC  := vendor/newbase/smartmet-library-newbase.spec
 MACGYVER_SPEC := vendor/macgyver/smartmet-library-macgyver.spec
 GIS_SPEC      := vendor/gis/smartmet-library-gis.spec
-VENDOR_SPECS  := $(NEWBASE_SPEC) $(MACGYVER_SPEC) $(GIS_SPEC)
 
 # -- Compiler and flags ------------------------------------------------------
 # Use pkg-config directly so the build works on any distro that has the stock
@@ -128,29 +139,30 @@ GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
 .PHONY: all debug release clean format install test rpm objdir \
         vendor-init vendor-pull vendor-check-version
 
-all: $(VENDOR_SPECS) $(PLUGIN)
+all: $(VENDOR_SENTINELS) $(PLUGIN)
 
 debug release: all
 
 # -- Submodule management ----------------------------------------------------
-# The .spec from each submodule is the sentinel: if it's missing, initialise
-# the submodule. Inside an RPM build chroot the spec is already present in the
-# unpacked tarball (the tarball ships the submodule working trees, not the
-# .git pointer), so these rules don't fire.
+# Each sentinel header above is the existence check: if it's missing, the
+# submodule isn't initialised, so run `git submodule update --init`. Inside
+# the RPM build chroot the sentinel is present in the unpacked tarball (the
+# vendor source dirs are shipped as-is), so these rules don't fire — and the
+# spec files, which are NOT in the tarball, are never touched.
 
-$(NEWBASE_SPEC):
+$(NEWBASE_SENTINEL):
 	@echo "==> vendor: initialising newbase submodule"
 	git submodule update --init vendor/newbase
 
-$(MACGYVER_SPEC):
+$(MACGYVER_SENTINEL):
 	@echo "==> vendor: initialising macgyver submodule"
 	git submodule update --init vendor/macgyver
 
-$(GIS_SPEC):
+$(GIS_SENTINEL):
 	@echo "==> vendor: initialising gis submodule"
 	git submodule update --init vendor/gis
 
-vendor-init: $(VENDOR_SPECS)
+vendor-init: $(VENDOR_SENTINELS)
 
 # Advance each submodule to the tip of its configured tracking branch
 # (set per submodule in .gitmodules via `branch =`). After this, the gitlink
@@ -162,8 +174,10 @@ vendor-pull: vendor-init
 
 # Cross-check that the version recorded in each spec matches the version-like
 # tracking branch configured in .gitmodules. Branch names that aren't version
-# tags (e.g. master, develop) are skipped.
-vendor-check-version: $(VENDOR_SPECS)
+# tags (e.g. master, develop) are skipped. Host-only: this target reads the
+# vendored .spec files, which are deliberately excluded from the rpmbuild
+# source tarball.
+vendor-check-version: $(VENDOR_SENTINELS)
 	@for pair in \
 	    "$(NEWBASE_SPEC)|vendor/newbase|newbase" \
 	    "$(MACGYVER_SPEC)|vendor/macgyver|macgyver" \
@@ -249,8 +263,8 @@ rpm: vendor-check-version clean $(SPEC).spec
 	    --exclude="vendor/*/README.md" \
 	    --exclude="vendor/*/.clang-format" \
 	    --exclude="vendor/*/.gitignore" \
+	    --exclude="vendor/*/smartmet-library-*.spec*" \
 	    --exclude="obj" --exclude="plugins" --exclude="*.so" \
-		--exclude="vendor/*/smartmet-library-*.spec" \
 	    *
 	rpmbuild -tb $(SPEC).tar.gz $(RPMBUILD_OPT)
 	rm -f $(SPEC).tar.gz
