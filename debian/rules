@@ -15,8 +15,32 @@ INSTALL_PLUGIN_DIR := /usr/lib/$(DEB_HOST_MULTIARCH)/gdalplugins
 %:
 	dh $@
 
-# We don't ship a configure step; nothing to do.
+# Initialise vendored submodules before Make reads VENDOR_SRCS.
+#
+# The project Makefile uses $(wildcard vendor/*/*.cpp) for VENDOR_SRCS,
+# which is evaluated at parse time. If the submodules are still empty
+# when Make starts, the wildcard returns nothing, no vendor .o file
+# enters the build graph, libvendored_smartmet.a is created empty, and
+# the link of gdal_querydata.so fails with hundreds of undefined
+# newbase/macgyver/gis symbols. The Makefile's own stamp-based init
+# can't help here — by the time it runs, the wildcard has already been
+# evaluated and cached.
+#
+# If .git isn't present (the package is being built from a source
+# tarball with submodules pre-extracted), skip the init and just
+# verify a sentinel header is in place so the build won't silently
+# produce an empty static archive.
 override_dh_auto_configure:
+	@if [ -e .git ]; then \
+	    git submodule update --init vendor/newbase vendor/macgyver vendor/gis; \
+	else \
+	    echo "No .git directory — assuming vendor/ is already populated"; \
+	    test -f vendor/newbase/newbase/NFmiArea.h || { \
+	        echo "ERROR: vendor sources are missing and there is no .git" \
+	             "to init from. Re-create the source tree with submodules"; \
+	        exit 1; \
+	    }; \
+	fi
 
 override_dh_auto_build:
 	$(MAKE) GDAL_PLUGIN_DIR=$(INSTALL_PLUGIN_DIR)
