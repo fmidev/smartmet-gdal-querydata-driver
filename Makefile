@@ -155,7 +155,7 @@ GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
 
 # -- Top-level targets -------------------------------------------------------
 .PHONY: all debug release clean format install test rpm deb objdir \
-        vendor-init vendor-pull vendor-check-version
+        vendor-init vendor-pull vendor-check-version check-gdal-version
 
 all: $(SUBMODULE_INIT_STAMP) $(PLUGIN)
 
@@ -246,11 +246,31 @@ $(PLUGIN): $(DRIVER_OBJS) $(VENDOR_LIB)
 $(VENDOR_LIB): $(VENDOR_OBJS)
 	$(AR) crs $@ $^
 
-obj/%.o: $(SUBNAME)/%.cpp | $(SUBMODULE_INIT_STAMP)
+# Minimum GDAL version. The driver source uses headers split out in GDAL 3.10
+# (gdal_dataset.h, gdal_geotransform.h, gdal_driver.h, gdal_drivermanager.h)
+# and the GDALGeoTransform class. Compiling against older GDAL fails late
+# with cryptic "fatal error: gdal_dataset.h: No such file or directory" —
+# this target turns that into a clear, early failure naming the workaround.
+GDAL_MIN_VERSION := 3.10
+
+check-gdal-version:
+	@$(PKG_CONFIG) --atleast-version=$(GDAL_MIN_VERSION) gdal || { \
+	    found=$$($(PKG_CONFIG) --modversion gdal 2>/dev/null || echo "none"); \
+	    echo "ERROR: GDAL >= $(GDAL_MIN_VERSION) required, pkg-config reports $$found."; \
+	    echo "       The driver uses headers and a class introduced in GDAL 3.10"; \
+	    echo "       (gdal_dataset.h, gdal_geotransform.h, GDALGeoTransform)."; \
+	    echo "       On Ubuntu 24.04 enable ppa:ubuntugis/ubuntugis-unstable:"; \
+	    echo "           sudo add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable"; \
+	    echo "           sudo apt-get update && sudo apt-get install libgdal-dev"; \
+	    echo "       On RHEL/Rocky pick a newer gdal3XY-devel side-by-side package."; \
+	    exit 1; \
+	}
+
+obj/%.o: $(SUBNAME)/%.cpp | $(SUBMODULE_INIT_STAMP) check-gdal-version
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
 
-obj/vendor/%.o: %.cpp | $(SUBMODULE_INIT_STAMP)
+obj/vendor/%.o: %.cpp | $(SUBMODULE_INIT_STAMP) check-gdal-version
 	@mkdir -p $(@D)
 	$(CXX) $(FLAGS) $(DEFINES) $(INCLUDES) -c -MD -MF $(@:.o=.d) -o $@ $<
 

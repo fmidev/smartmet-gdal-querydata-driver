@@ -96,7 +96,11 @@ jobs:
       - run:
           name: Build .deb
           command: |
-            dpkg-buildpackage -us -uc -b
+            # Mirror the RPM jobs' parallelism (RPM_BUILD_NCPUS=8). On Debian
+            # the conventional knob is DEB_BUILD_OPTIONS=parallel=N — debhelper
+            # reads it and passes -jN through to make. resource_class: xlarge
+            # gives 8 vCPUs; `nproc` keeps it correct if the class ever changes.
+            DEB_BUILD_OPTIONS=parallel=$(nproc) dpkg-buildpackage -us -uc -b
       - run:
           name: Collect .deb artefacts
           command: |
