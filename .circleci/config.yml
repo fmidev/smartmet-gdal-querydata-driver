@@ -64,7 +64,33 @@ jobs:
             apt-get update
             apt-get install -y --no-install-recommends \
               ca-certificates git openssh-client
+      - run:
+          name: Stash mounted source if running under `circleci local execute`
+          command: |
+            # `circleci local execute` mounts the host working directory into
+            # this container, so the project files are already here before
+            # `checkout` runs. The built-in `checkout` step would otherwise
+            # clobber them with origin's HEAD, losing any unpushed local work
+            # (and breaking the .deb build if e.g. debian/changelog only
+            # exists locally).  Detect the local-execute case by checking for
+            # source files already in $PWD, and tar them aside so the
+            # post-checkout step can restore them.  In a cloud CircleCI
+            # build, $PWD is empty at this point and the check is a no-op.
+            if [ -f Makefile ] && [ -d qd_driver ]; then
+              mkdir -p /tmp/cci-local-stash
+              tar -cf - . | tar -C /tmp/cci-local-stash -xf -
+              echo "Stashed mounted source ($(du -sh /tmp/cci-local-stash | cut -f1))"
+            fi
       - checkout
+      - run:
+          name: Restore stashed source over checkout (local-execute only)
+          command: |
+            if [ -d /tmp/cci-local-stash ]; then
+              echo "Restoring local source on top of origin checkout"
+              find . -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+              tar -cf - -C /tmp/cci-local-stash . | tar -xf -
+              rm -rf /tmp/cci-local-stash
+            fi
       - run:
           name: Install build dependencies
           command: |
