@@ -153,7 +153,7 @@ libdir          ?= $(PREFIX)/lib64
 GDAL_PLUGIN_DIR ?= $(libdir)/gdalplugins
 
 # -- Top-level targets -------------------------------------------------------
-.PHONY: all debug release clean format install test rpm objdir \
+.PHONY: all debug release clean format install test rpm deb objdir \
         vendor-init vendor-pull vendor-check-version
 
 all: $(SUBMODULE_INIT_STAMP) $(PLUGIN)
@@ -272,6 +272,14 @@ install: $(PLUGIN)
 
 test: $(PLUGIN)
 	bash test/smoke.sh
+
+# -- DEB target --------------------------------------------------------------
+# Build a binary .deb via dpkg-buildpackage. The resulting *.deb files land
+# in the parent directory (standard dpkg behaviour). Build deps come from
+# debian/control. dpkg-buildpackage internally calls `make clean` followed
+# by `make` (via debian/rules), so this target both cleans and rebuilds.
+deb:
+	dpkg-buildpackage -us -uc -b
 
 # -- RPM target --------------------------------------------------------------
 # Build a source tarball that contains everything rpmbuild needs, including the

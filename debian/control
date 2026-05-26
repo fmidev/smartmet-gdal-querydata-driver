@@ -1,0 +1,41 @@
+Source: smartmet-gdal-querydata-driver
+Section: science
+Priority: optional
+Maintainer: FMI <andris.pavenis@fmi.fi>
+Build-Depends: debhelper-compat (= 13),
+               g++,
+               make,
+               pkg-config,
+               libgdal-dev,
+               libgeos++-dev,
+               libproj-dev,
+               libfmt-dev,
+               libicu-dev,
+               libdouble-conversion-dev,
+               libboost-chrono-dev,
+               libboost-iostreams-dev,
+               libboost-regex-dev,
+               libboost-serialization-dev,
+               libboost-thread-dev,
+               git
+Standards-Version: 4.6.2
+Homepage: https://github.com/fmidev/smartmet-gdal-querydata-driver
+
+Package: smartmet-gdal-querydata-driver
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, tzdata
+Description: GDAL driver for FMI QueryData (.sqd) files
+ Out-of-tree GDAL plugin that exposes FMI QueryData (.sqd, .fqd) files as a
+ GDAL raster dataset. Once installed, gdalinfo, gdal_translate, gdalwarp,
+ QGIS, rasterio, xarray, and any other GDAL consumer can read .sqd files
+ directly. Each (parameter, level) combination is exposed as a subdataset,
+ with one band per time step. Composite parameters (TotalWind,
+ WeatherAndCloudiness) are unpacked into their sub-components. The plugin
+ also exposes the data via GDAL's Multi-Dimensional Raster API for
+ xarray / NetCDF / Zarr workflows, and supports CreateCopy for
+ round-tripping single-parameter rasters back to .sqd via gdal_translate.
+ .
+ QueryData is a legacy FMI-internal format and is not part of upstream
+ GDAL. The driver bundles its three smartmet C++ library dependencies
+ (newbase, macgyver, gis) statically, so installing this package does not
+ pull any FMI runtime libraries onto the system.

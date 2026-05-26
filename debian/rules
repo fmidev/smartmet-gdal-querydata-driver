@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+# debian/rules for smartmet-gdal-querydata-driver
+#
+# Delegates to the project's own Makefile, overriding GDAL_PLUGIN_DIR so the
+# plugin lands in Debian/Ubuntu's multiarch plugin directory rather than the
+# RHEL-style /usr/lib64/gdalplugins.
+
+export DEB_BUILD_MAINT_OPTIONS := hardening=+all
+
+include /usr/share/dpkg/architecture.mk
+
+PKG := smartmet-gdal-querydata-driver
+INSTALL_PLUGIN_DIR := /usr/lib/$(DEB_HOST_MULTIARCH)/gdalplugins
+
+%:
+	dh $@
+
+# We don't ship a configure step; nothing to do.
+override_dh_auto_configure:
+
+override_dh_auto_build:
+	$(MAKE) GDAL_PLUGIN_DIR=$(INSTALL_PLUGIN_DIR)
+
+override_dh_auto_install:
+	$(MAKE) install \
+	    DESTDIR=$(CURDIR)/debian/$(PKG) \
+	    GDAL_PLUGIN_DIR=$(INSTALL_PLUGIN_DIR)
+
+# The project Makefile's `clean` removes obj/, the built .so and test/output —
+# enough for dh_clean to start from a known state.
+override_dh_auto_clean:
+	$(MAKE) clean

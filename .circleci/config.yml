@@ -51,6 +51,47 @@ jobs:
       - persist_to_workspace:
           root: /dist
           paths: ./*.rpm
+  build-ubuntu24:
+    docker:
+      - image: ubuntu:24.04
+    resource_class: xlarge
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - run:
+          name: Install git and ca-certificates so CircleCI can check out the repo
+          command: |
+            apt-get update
+            apt-get install -y --no-install-recommends \
+              ca-certificates git openssh-client
+      - checkout
+      - run:
+          name: Install build dependencies
+          command: |
+            apt-get install -y --no-install-recommends \
+              build-essential pkg-config dpkg-dev debhelper \
+              libgdal-dev libgeos++-dev libproj-dev libfmt-dev libicu-dev \
+              libdouble-conversion-dev \
+              libboost-chrono-dev libboost-iostreams-dev libboost-regex-dev \
+              libboost-serialization-dev libboost-thread-dev
+      - run:
+          name: Build .deb
+          command: |
+            # CircleCI's checkout creates files owned by a different user than
+            # dpkg-buildpackage runs as; without this, git refuses to operate
+            # on the working tree ("dubious ownership") and the Makefile's
+            # submodule init fails.
+            git config --global --add safe.directory '*'
+            dpkg-buildpackage -us -uc -b
+      - run:
+          name: Collect .deb artefacts
+          command: |
+            mkdir -p /dist
+            mv ../*.deb /dist/
+            ls -l /dist/
+      - persist_to_workspace:
+          root: /dist
+          paths: ./*.deb
 workflows:
   version: 2.1
   build-test:
@@ -58,3 +99,4 @@ workflows:
       - build-rhel8
       - build-rhel9
       - build-rhel10
+      - build-ubuntu24

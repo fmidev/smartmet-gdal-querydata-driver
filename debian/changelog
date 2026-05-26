@@ -1,0 +1,7 @@
+smartmet-gdal-querydata-driver (26.5.25-1) noble; urgency=medium
+
+  * Initial Debian/Ubuntu packaging.
+  * Vendored newbase, macgyver, gis as git submodules and statically link them.
+    The plugin package has no smartmet-library runtime dependencies.
+
+ -- Andris Pavēnis <andris.pavenis@fmi.fi>  Mon, 25 May 2026 12:00:00 +0300
