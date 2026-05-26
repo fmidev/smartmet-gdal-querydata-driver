@@ -132,6 +132,7 @@ VENDOR_SRCS := \
   $(wildcard vendor/newbase/newbase/*.cpp) \
   $(filter-out \
       vendor/macgyver/macgyver/TemplateFormatter.cpp \
+	  vendor/macgyver/macgyver/TemplateFactory.cpp \
       vendor/macgyver/macgyver/PostgreSQLConnection.cpp \
       vendor/macgyver/macgyver/PostgreSQLConnectionImpl.cpp, \
       $(wildcard vendor/macgyver/macgyver/*.cpp)) \
