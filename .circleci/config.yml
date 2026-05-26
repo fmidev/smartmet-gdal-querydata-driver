@@ -51,9 +51,9 @@ jobs:
       - persist_to_workspace:
           root: /dist
           paths: ./*.rpm
-  build-ubuntu24:
+  build-ubuntu26:
     docker:
-      - image: ubuntu:24.04
+      - image: ubuntu:26.04
     resource_class: xlarge
     environment:
       DEBIAN_FRONTEND: noninteractive
@@ -125,4 +125,4 @@ workflows:
       - build-rhel8
       - build-rhel9
       - build-rhel10
-      - build-ubuntu24
+      - build-ubuntu26

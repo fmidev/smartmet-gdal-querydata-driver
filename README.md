@@ -63,6 +63,36 @@ gdalinfo --formats | grep querydata
 
 The `(rws)` capabilities mean **r**ead, **w**rite (via CreateCopy), **s**ubdatasets.
 
+### Debian / Ubuntu
+
+Build a binary `.deb`:
+
+```bash
+sudo apt-get install -y \
+    build-essential pkg-config dpkg-dev debhelper \
+    libgdal-dev libgeos++-dev libproj-dev libfmt-dev libicu-dev \
+    libdouble-conversion-dev \
+    libboost-chrono-dev libboost-iostreams-dev libboost-regex-dev \
+    libboost-serialization-dev libboost-thread-dev
+make deb
+sudo dpkg -i ../smartmet-gdal-querydata-driver_*.deb
+```
+
+`make deb` is a thin wrapper around `dpkg-buildpackage -us -uc -b`; the resulting `.deb` files land in the parent directory (standard `dpkg-buildpackage` behaviour). Runtime dependencies are resolved automatically by `dh_shlibdeps` from the libraries the `.so` actually links against, so the package picks the correct `libgdalXX`, `libfmtX`, etc. for the host.
+
+**GDAL version requirement:** the driver source uses headers and types added in GDAL 3.10 (`gdal_dataset.h`, `gdal_geotransform.h`, the `GDALGeoTransform` class). That means:
+
+- **Ubuntu 26.04 LTS or newer** — works out of the box; stock `libgdal-dev` is recent enough.
+- **Ubuntu 24.04 LTS (noble)** — stock `libgdal-dev` is 3.8.x and is too old. Enable the [ubuntugis](https://launchpad.net/~ubuntugis/+archive/ubuntu/ubuntugis-unstable) PPA before installing build-deps:
+  ```bash
+  sudo add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable
+  sudo apt-get update
+  ```
+  then proceed with the `apt-get install` above. The PPA ships a newer libgdal that exposes the headers the driver needs.
+- **Debian** — no LTS-style guarantees here; check that your distribution's `libgdal-dev` advertises GDAL ≥ 3.10. If not, build GDAL from source or pull it from `bookworm-backports` / `trixie`.
+
+CircleCI builds the `.deb` on `ubuntu:26.04` only — see `.circleci/config.yml`'s `build-ubuntu26` job.
+
 ### macOS (Homebrew, Apple Silicon)
 
 ```bash
