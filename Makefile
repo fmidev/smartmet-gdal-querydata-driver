@@ -246,18 +246,20 @@ $(PLUGIN): $(DRIVER_OBJS) $(VENDOR_LIB)
 $(VENDOR_LIB): $(VENDOR_OBJS)
 	$(AR) crs $@ $^
 
-# Minimum GDAL version. The driver source uses headers split out in GDAL 3.10
-# (gdal_dataset.h, gdal_geotransform.h, gdal_driver.h, gdal_drivermanager.h)
-# and the GDALGeoTransform class. Compiling against older GDAL fails late
-# with cryptic "fatal error: gdal_dataset.h: No such file or directory" —
-# this target turns that into a clear, early failure naming the workaround.
-GDAL_MIN_VERSION := 3.10
+# Minimum GDAL version. The driver source uses headers and a class first
+# shipped in GDAL 3.12 (gdal_dataset.h, gdal_geotransform.h, gdal_driver.h,
+# gdal_drivermanager.h, the GDALGeoTransform class). Compiling against older
+# GDAL fails late with cryptic "fatal error: gdal_dataset.h: No such file or
+# directory" — this target turns that into a clear, early failure naming the
+# workaround. (Supporting older releases is doable with compat shims if it
+# ever becomes worth the source-level complexity.)
+GDAL_MIN_VERSION := 3.12
 
 check-gdal-version:
 	@$(PKG_CONFIG) --atleast-version=$(GDAL_MIN_VERSION) gdal || { \
 	    found=$$($(PKG_CONFIG) --modversion gdal 2>/dev/null || echo "none"); \
 	    echo "ERROR: GDAL >= $(GDAL_MIN_VERSION) required, pkg-config reports $$found."; \
-	    echo "       The driver uses headers and a class introduced in GDAL 3.10"; \
+	    echo "       The driver uses headers and a class first shipped in GDAL 3.12"; \
 	    echo "       (gdal_dataset.h, gdal_geotransform.h, GDALGeoTransform)."; \
 	    echo "       On Ubuntu 24.04 enable ppa:ubuntugis/ubuntugis-unstable:"; \
 	    echo "           sudo add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable"; \

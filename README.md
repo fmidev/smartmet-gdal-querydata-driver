@@ -80,7 +80,7 @@ sudo dpkg -i ../smartmet-gdal-querydata-driver_*.deb
 
 `make deb` is a thin wrapper around `dpkg-buildpackage -us -uc -b`; the resulting `.deb` files land in the parent directory (standard `dpkg-buildpackage` behaviour). Runtime dependencies are resolved automatically by `dh_shlibdeps` from the libraries the `.so` actually links against, so the package picks the correct `libgdalXX`, `libfmtX`, etc. for the host.
 
-**GDAL version requirement:** the driver source uses headers and types added in GDAL 3.10 (`gdal_dataset.h`, `gdal_geotransform.h`, the `GDALGeoTransform` class). That means:
+**GDAL version requirement:** the driver source uses headers and types first shipped in GDAL 3.12 (`gdal_dataset.h`, `gdal_geotransform.h`, the `GDALGeoTransform` class). `make` checks this via `pkg-config --atleast-version=3.12 gdal` and fails fast with a clear message if it's missing. That means:
 
 - **Ubuntu 26.04 LTS or newer** — works out of the box; stock `libgdal-dev` is recent enough.
 - **Ubuntu 24.04 LTS (noble)** — stock `libgdal-dev` is 3.8.x and is too old. Enable the [ubuntugis](https://launchpad.net/~ubuntugis/+archive/ubuntu/ubuntugis-unstable) PPA before installing build-deps:
@@ -89,7 +89,9 @@ sudo dpkg -i ../smartmet-gdal-querydata-driver_*.deb
   sudo apt-get update
   ```
   then proceed with the `apt-get install` above. The PPA ships a newer libgdal that exposes the headers the driver needs.
-- **Debian** — no LTS-style guarantees here; check that your distribution's `libgdal-dev` advertises GDAL ≥ 3.10. If not, build GDAL from source or pull it from `bookworm-backports` / `trixie`.
+- **Debian** — no LTS-style guarantees here; check that your distribution's `libgdal-dev` advertises GDAL ≥ 3.12. If not, build GDAL from source or pull it from `bookworm-backports` / `trixie`.
+
+Supporting older GDAL releases is possible with source-level compat shims (e.g. `#include <gdal_priv.h>` in place of `gdal_dataset.h`, and reverting to the `double[6]` `GetGeoTransform` signature for pre-3.12) — not pursued today; revisit if a deployment target ever pins us there.
 
 CircleCI builds the `.deb` on `ubuntu:26.04` only — see `.circleci/config.yml`'s `build-ubuntu26` job.
 
