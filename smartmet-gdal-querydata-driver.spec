@@ -7,7 +7,7 @@
 
 Summary: GDAL driver for FMI QueryData (.sqd) files
 Name: %{SPECNAME}
-Version: 26.5.25
+Version: 26.6.8
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -113,6 +113,9 @@ rm -rf $RPM_BUILD_ROOT
 %{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
 
 %changelog
+* Mon Jun  8 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.6.8-1.fmi
+- Hide internal symbols in the GDAL driver (-fvisibility=hidden)
+
 * Mon May 25 2026 Andreas Pavenis <andris.pavenis@fmi.fi> - 26.5.25-1.fmi
 - Fix building RPMs
 - Use GIT submodules for vendored libraries instead of copying source files,
