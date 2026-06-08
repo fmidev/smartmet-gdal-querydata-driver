@@ -74,7 +74,20 @@ OPTIMIZE ?= -O2
 
 DEFINES := -DUNIX -D_REENTRANT -DBOOST -DPQXX_HIDE_EXP_OPTIONAL \
            -DUSE_UNSTABLE_GEOS_CPP_API \
-           -DUSE_OS_TZDB=1 -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0
+           -DUSE_OS_TZDB=1 -DAUTO_DOWNLOAD=0 -DHAS_REMOTE_API=0 \
+           -DUSE_GCC_VISIBILITY_FLAG
+# USE_GCC_VISIBILITY_FLAG makes GDAL's CPL_DLL expand to
+# __attribute__((visibility("default"))). Combined with -fvisibility=hidden in
+# FLAGS below it keeps the two CPL_DLL-tagged plugin entry points
+# (GDALRegisterMe / GDALRegister_querydata) exported while hiding everything
+# else — in particular the vendored newbase/macgyver/gis symbols, which the
+# driver uses only internally. This stops those symbols from being exported in
+# the plugin's dynamic symbol table, where ELF interposition would otherwise
+# collide them with the host process's own copies (e.g. libsmartmet-newbase.so's
+# fmiwkt), causing double-frees at exit. Without this define CPL_DLL is empty
+# and -fvisibility=hidden would hide the entry points too, leaving GDAL unable
+# to find the driver.
+#
 # Without the tz-related defines: macgyver's vendored copy of Howard Hinnant's
 # date/tz library tries to fetch the IANA timezone database from ftp.iana.org
 # during static initialisation — which deadlocks dlopen() of the plugin in any
@@ -82,7 +95,8 @@ DEFINES := -DUNIX -D_REENTRANT -DBOOST -DPQXX_HIDE_EXP_OPTIONAL \
 # system's /usr/share/zoneinfo instead (tzdata package on Fedora).
 WARNINGS := -Wall -Wextra -Wno-unused-parameter -Wno-deprecated-declarations
 FLAGS    := -std=$(CXX_STD) -fPIC -fno-omit-frame-pointer -ggdb3 $(OPTIMIZE) \
-            -DNDEBUG $(WARNINGS)
+            -DNDEBUG $(WARNINGS) \
+            -fvisibility=hidden -fvisibility-inlines-hidden
 
 PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags $(PKG_MODULES))
 PKG_LIBS   := $(shell $(PKG_CONFIG) --libs   $(PKG_MODULES))
