@@ -317,7 +317,7 @@ void QDDataset::buildSubdatasetList()
     {
       itsInfo->LevelIndex(l);
       const NFmiLevel* level = itsInfo->Level();
-      const float levelValue = (level != nullptr) ? level->LevelValue() : 0.f;
+      const float levelValue = (level != nullptr) ? level->LevelValue() : 0.F;
       const long levelTypeId = (level != nullptr) ? static_cast<long>(level->LevelType()) : 0;
       const std::string levelDesc =
           fmt::format("Level {} (type {})", levelValue, levelTypeId);

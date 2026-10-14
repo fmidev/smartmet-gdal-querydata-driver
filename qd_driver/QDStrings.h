@@ -47,7 +47,7 @@ inline std::string fromUtf8(std::string_view utf8)
     else if ((c & 0xE0) == 0xC0 && i + 1 < utf8.size())
     {
       const unsigned char c2 = static_cast<unsigned char>(utf8[i + 1]);
-      const unsigned int cp = ((c & 0x1Fu) << 6) | (c2 & 0x3Fu);
+      const unsigned int cp = ((c & 0x1FU) << 6) | (c2 & 0x3FU);
       out.push_back(cp < 256 ? static_cast<char>(cp) : '?');
       i += 2;
     }

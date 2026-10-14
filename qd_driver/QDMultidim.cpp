@@ -447,7 +447,7 @@ class QDRootGroup : public GDALGroup
   {
   }
 
-  std::vector<std::string> GetMDArrayNames(CSLConstList = nullptr) const override
+  std::vector<std::string> GetMDArrayNames(CSLConstList /*papszOptions*/ = nullptr) const override
   {
     std::vector<std::string> names;
     names.reserve(itsArrayOrder.size() + itsCoordOrder.size());
@@ -457,7 +457,7 @@ class QDRootGroup : public GDALGroup
   }
 
   std::shared_ptr<GDALMDArray> OpenMDArray(const std::string& name,
-                                           CSLConstList = nullptr) const override
+                                           CSLConstList /*papszOptions*/ = nullptr) const override
   {
     auto it = itsArrays.find(name);
     if (it != itsArrays.end()) return it->second;
@@ -467,7 +467,7 @@ class QDRootGroup : public GDALGroup
   }
 
   std::vector<std::shared_ptr<GDALDimension>> GetDimensions(
-      CSLConstList = nullptr) const override
+      CSLConstList /*papszOptions*/ = nullptr) const override
   {
     return itsDimList;
   }
@@ -528,8 +528,12 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
 
   // ---- geotransform → projected x and y axis values ----
   const NFmiArea* area = qi.Area();
-  std::vector<double> xValues, yValues;
-  double xStart = 0, xStep = 1, yStart = 0, yStep = -1;
+  std::vector<double> xValues;
+  std::vector<double> yValues;
+  double xStart = 0;
+  double xStep = 1;
+  double yStart = 0;
+  double yStep = -1;
   if (area != nullptr)
   {
     const NFmiRect rect = area->WorldRect();
@@ -563,7 +567,7 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
   root->addCoord("y", RegularDoubleArray::Create("/", "y", dimY, yStart, yStep));
 
   // levels
-  std::vector<float> levelValues(nL, 0.f);
+  std::vector<float> levelValues(nL, 0.F);
   for (unsigned long l = 0; l < nL; ++l)
   {
     qi.LevelIndex(l);

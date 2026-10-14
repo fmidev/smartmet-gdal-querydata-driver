@@ -52,7 +52,12 @@ namespace
 bool parseIsoTime(const char* s, NFmiMetTime& out)
 {
   if (s == nullptr) return false;
-  int Y = 0, M = 0, D = 0, h = 0, m = 0, sec = 0;
+  int Y = 0;
+  int M = 0;
+  int D = 0;
+  int h = 0;
+  int m = 0;
+  int sec = 0;
   if (std::sscanf(s, "%d-%d-%dT%d:%d:%d", &Y, &M, &D, &h, &m, &sec) >= 5)
   {
     out = NFmiMetTime(static_cast<short>(Y), static_cast<short>(M), static_cast<short>(D),
@@ -194,11 +199,11 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
   NFmiParamDescriptor paramDesc(paramBag);
 
   // Single level (creation options can override).
-  float levelValue = 0.f;
+  float levelValue = 0.F;
   long levelType = 1;  // ground / surface
   if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_VALUE")) levelValue = std::atof(v);
   if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_TYPE")) levelType = std::atol(v);
-  NFmiLevelBag levelBag(static_cast<FmiLevelType>(levelType), levelValue, levelValue, 0.f);
+  NFmiLevelBag levelBag(static_cast<FmiLevelType>(levelType), levelValue, levelValue, 0.F);
   NFmiVPlaceDescriptor vPlace(levelBag);
 
   // Times: read VALID_TIME per band; if any band is missing it, fall back to
