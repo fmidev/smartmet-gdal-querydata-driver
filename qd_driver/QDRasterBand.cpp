@@ -42,7 +42,7 @@ CPLErr QDRasterBand::IReadBlock(int /*nBlockXOff*/, int /*nBlockYOff*/, void* pI
   std::lock_guard<std::mutex> lock(ds->mutex());
   auto& qi = ds->info();
 
-  bool ok;
+  bool ok = false;
   if (ds->subParamId() != 0)
   {
     // Activates the sub-param and the parent index in one call. ParamIndex()

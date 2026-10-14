@@ -385,7 +385,7 @@ void QDDataset::buildBands()
     {
       for (const auto& s : dataIdent.GetDataParams()->ParamsVector())
       {
-        if (static_cast<unsigned long>(s.GetParamIdent()) == itsSubParamId)
+        if (s.GetParamIdent() == itsSubParamId)
         {
           subName = toUtf8(s.GetParamName().CharPtr());
           break;

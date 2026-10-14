@@ -62,7 +62,7 @@ std::string sanitizeName(std::string_view latin1)
   for (size_t i = 0; i < latin1.size(); ++i)
   {
     unsigned char c = static_cast<unsigned char>(latin1[i]);
-    char keep;
+    char keep = 0;
     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_')
       keep = static_cast<char>(c);
     else if (c >= '0' && c <= '9')
@@ -374,7 +374,7 @@ class QDDataMDArray : public GDALMDArray
     std::lock_guard<std::mutex> lock(itsDataset.mutex());
     auto& qi = itsDataset.info();
 
-    bool ok;
+    bool ok = false;
     if (itsSpec.subParamId != 0)
       ok = qi.Param(static_cast<FmiParameterName>(itsSpec.subParamId)) && qi.IsSubParamUsed();
     else
@@ -521,7 +521,7 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
 
   // ---- SRS shared by all data arrays ----
   std::shared_ptr<OGRSpatialReference> srs;
-  if (auto* dsSrs = ds.GetSpatialRef())
+  if (const auto* dsSrs = ds.GetSpatialRef())
   {
     srs = std::shared_ptr<OGRSpatialReference>(dsSrs->Clone());
   }
@@ -567,7 +567,8 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
   for (unsigned long l = 0; l < nL; ++l)
   {
     qi.LevelIndex(l);
-    if (auto* lv = qi.Level()) levelValues[l] = lv->LevelValue();
+    if (const auto* lv = qi.Level())
+      levelValues[l] = lv->LevelValue();
   }
   root->addCoord("level", FloatVectorArray::Create("/", "level", dimL, std::move(levelValues)));
 
