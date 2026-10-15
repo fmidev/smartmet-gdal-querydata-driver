@@ -442,10 +442,7 @@ class QDDataMDArray : public GDALMDArray
 class QDRootGroup : public GDALGroup
 {
  public:
-  QDRootGroup(const std::string& name, QDDataset& ds)
-      : GDALGroup("/", name), itsDataset(ds)
-  {
-  }
+  explicit QDRootGroup(const std::string& name) : GDALGroup("/", name) {}
 
   std::vector<std::string> GetMDArrayNames(CSLConstList /*papszOptions*/ = nullptr) const override
   {
@@ -475,8 +472,7 @@ class QDRootGroup : public GDALGroup
   // Mutators used by the builder (not part of the GDAL public API).
   void addDimension(std::shared_ptr<GDALDimension> dim)
   {
-    itsDimList.push_back(dim);
-    itsDims[dim->GetName()] = std::move(dim);
+    itsDimList.push_back(std::move(dim));
   }
   void addArray(const std::string& name, std::shared_ptr<GDALMDArray> arr)
   {
@@ -488,16 +484,9 @@ class QDRootGroup : public GDALGroup
     itsCoords[name] = std::move(arr);
     itsCoordOrder.push_back(name);
   }
-  std::shared_ptr<GDALDimension> dim(const std::string& name) const
-  {
-    auto it = itsDims.find(name);
-    return it == itsDims.end() ? nullptr : it->second;
-  }
 
  private:
-  QDDataset& itsDataset;
   std::vector<std::shared_ptr<GDALDimension>> itsDimList;
-  std::map<std::string, std::shared_ptr<GDALDimension>> itsDims;
   std::map<std::string, std::shared_ptr<GDALMDArray>> itsArrays;
   std::map<std::string, std::shared_ptr<GDALMDArray>> itsCoords;
   std::vector<std::string> itsArrayOrder;
@@ -545,7 +534,7 @@ std::shared_ptr<GDALGroup> buildRootGroup(QDDataset& ds)
     yStep = -pixelH;
   }
 
-  auto root = std::make_shared<QDRootGroup>("/", ds);
+  auto root = std::make_shared<QDRootGroup>("/");
 
   // ---- dimensions ----
   auto dimT =

@@ -38,7 +38,6 @@ namespace GdalQueryData
 {
 namespace
 {
-constexpr const char* kDriverName = "querydata";
 constexpr const char* kSubdatasetPrefix = "querydata:";
 
 // First 9 bytes of every .sqd file: '@', '$', 0xb0, 0xa3, 'Q', 'I', 'N', 'F', 'O'.
