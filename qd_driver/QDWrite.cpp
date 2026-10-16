@@ -93,29 +93,10 @@ const char* fetchOpt(CSLConstList options, GDALDataset* src, const char* key)
   return nullptr;
 }
 
-}  // namespace
-
-GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bStrict*/,
-                        CreateCopyOptList papszOptions, GDALProgressFunc pfnProgress,
-                        void* pProgressData)
+// Fetch the geotransform and the spatial reference of the source dataset.
+// Returns nullptr after reporting the error if they are missing or unsupported.
+const OGRSpatialReference* sourceSpatialReference(GDALDataset* poSrcDS, GDALGeoTransform& gt)
 {
-  if (poSrcDS == nullptr || pszFilename == nullptr)
-  {
-    CPLError(CE_Failure, CPLE_AppDefined, "querydata CreateCopy: missing source or filename");
-    return nullptr;
-  }
-
-  const int nx = poSrcDS->GetRasterXSize();
-  const int ny = poSrcDS->GetRasterYSize();
-  const int nBands = poSrcDS->GetRasterCount();
-  if (nx <= 0 || ny <= 0 || nBands <= 0)
-  {
-    CPLError(CE_Failure, CPLE_AppDefined,
-             "querydata CreateCopy: source must have non-empty raster and at least one band");
-    return nullptr;
-  }
-
-  GDALGeoTransform gt;
   if (poSrcDS->GetGeoTransform(gt) != CE_None)
   {
     CPLError(CE_Failure, CPLE_AppDefined, "querydata CreateCopy: source has no geotransform");
@@ -137,7 +118,16 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
              "querydata CreateCopy: source has no spatial reference");
     return nullptr;
   }
+  return srcSrs;
+}
 
+// Create the newbase area of the source grid. Returns nullptr after reporting the error
+// if the source projection cannot be mapped to an NFmiArea.
+std::unique_ptr<NFmiArea> createArea(const OGRSpatialReference& srcSrs,
+                                     const GDALGeoTransform& gt,
+                                     int nx,
+                                     int ny)
+{
   // Projected-coordinate corners. With a typical top-down geotransform
   // (negative yscale) the upper-left is (xorig, yorig) and the lower-right is
   // (xorig + nx*xscale, yorig + ny*yscale).
@@ -157,7 +147,7 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
   std::unique_ptr<NFmiArea> area;
   try
   {
-    Fmi::SpatialReference sr(*srcSrs);
+    Fmi::SpatialReference sr(srcSrs);
     area.reset(NFmiArea::CreateFromBBox(sr, NFmiPoint(xMin, yMin), NFmiPoint(xMax, yMax)));
   }
   catch (const std::exception& e)
@@ -172,50 +162,17 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
              "querydata CreateCopy: source SRS produced no usable NFmiArea");
     return nullptr;
   }
+  return area;
+}
 
-  // QD grid storage: kBottomLeft is the conventional starting corner. We
-  // convert top-down GDAL rows to bottom-up QD rows on write.
-  //
-  // NOTE: must use the (Grid)-only constructor, not (Area, Grid). The latter
-  // sets both itsArea and itsGrid; NFmiHPlaceDescriptor::Size() then takes the
-  // IsArea() branch first and reports 1 location, which makes SetValues poke
-  // exactly one cell. The Grid-only constructor leaves itsArea null and Size()
-  // correctly returns nx*ny.
-  NFmiGrid grid(area.get(), static_cast<unsigned long>(nx), static_cast<unsigned long>(ny),
-                kBottomLeft);
-  NFmiHPlaceDescriptor hPlace(grid);
-
-  // Parameter
-  long paramId = 4;  // kFmiTemperature
-  std::string paramName = "Data";
-  if (const char* v = fetchOpt(papszOptions, poSrcDS, "PARAM_ID")) paramId = std::atol(v);
-  if (const char* v = fetchOpt(papszOptions, poSrcDS, "PARAM_NAME")) paramName = v;
-  // newbase strings are Latin-1; convert if the caller passed UTF-8 (the
-  // typical case from a NetCDF/GeoTIFF source).
-  paramName = fromUtf8(paramName);
-  NFmiParam param(static_cast<unsigned long>(paramId), paramName.c_str());
-  NFmiParamBag paramBag;
-  paramBag.Add(NFmiDataIdent(param));
-  NFmiParamDescriptor paramDesc(paramBag);
-
-  // Single level (creation options can override).
-  float levelValue = 0.F;
-  long levelType = 1;  // ground / surface
-  if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_VALUE")) levelValue = std::atof(v);
-  if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_TYPE")) levelType = std::atol(v);
-  NFmiLevelBag levelBag(static_cast<FmiLevelType>(levelType), levelValue, levelValue, 0.F);
-  NFmiVPlaceDescriptor vPlace(levelBag);
-
-  // Times: read VALID_TIME per band; if any band is missing it, fall back to
-  // START_TIME + TIMESTEP_MINUTES creation options; if those are missing too,
-  // synthesise hourly steps from epoch as a last resort.
-  NFmiMetTime originTime;  // default = current UTC
-  bool haveOrigin = false;
-  if (const char* v = fetchOpt(papszOptions, poSrcDS, "ORIGIN_TIME"))
-    haveOrigin = parseIsoTime(v, originTime);
-  // Origin defaults to "now" but NFmiMetTime() that's fine.
-
-  std::vector<NFmiMetTime> validTimes;
+// Collect the valid times of all bands: VALID_TIME per band, or START_TIME +
+// TIMESTEP_MINUTES if any band is missing it. Returns false after reporting the
+// error if START_TIME is invalid.
+bool collectValidTimes(CreateCopyOptList papszOptions,
+                       GDALDataset* poSrcDS,
+                       int nBands,
+                       std::vector<NFmiMetTime>& validTimes)
+{
   validTimes.reserve(nBands);
   bool allBandTimes = true;
   for (int b = 1; b <= nBands; ++b)
@@ -240,7 +197,7 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
       if (!parseIsoTime(v, startTime))
       {
         CPLError(CE_Failure, CPLE_AppDefined, "querydata CreateCopy: invalid START_TIME '%s'", v);
-        return nullptr;
+        return false;
       }
     }
     if (const char* v = fetchOpt(papszOptions, poSrcDS, "TIMESTEP_MINUTES"))
@@ -252,18 +209,74 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
       validTimes.push_back(t);
     }
   }
+  return true;
+}
 
-  if (!haveOrigin && !validTimes.empty()) originTime = validTimes.front();
+// Copy one source band into the corresponding time step of the querydata.
+// Returns false after reporting the error on failure.
+bool copyBand(GDALDataset* poSrcDS,
+              int b,
+              int nx,
+              int ny,
+              std::vector<float>& rowMajor,
+              NFmiFastQueryInfo& fi)
+{
+  auto* band = poSrcDS->GetRasterBand(b);
+  const CPLErr ioErr = band->RasterIO(GF_Read, 0, 0, nx, ny, rowMajor.data(), nx, ny,
+                                      GDT_Float32, 0, 0, nullptr);
+  if (ioErr != CE_None)
+  {
+    CPLError(CE_Failure, CPLE_AppDefined,
+             "querydata CreateCopy: failed to read source band %d", b);
+    return false;
+  }
 
-  NFmiTimeList timeList;
-  for (auto& t : validTimes) timeList.Add(new NFmiMetTime(t));
-  NFmiTimeDescriptor timeDesc(originTime, timeList);
+  // Map source band's nodata to kFloatMissing so QD readers see "missing"
+  // consistently. If the source has no nodata, leave values untouched.
+  int hasNoData = 0;
+  const double srcNoData = band->GetNoDataValue(&hasNoData);
+  if (hasNoData)
+  {
+    const float srcNoDataF = static_cast<float>(srcNoData);
+    for (auto& v : rowMajor)
+      if (v == srcNoDataF) v = kFloatMissing;
+  }
 
-  // Build the QueryInfo + QueryData. Use CreateEmptyData rather than the
-  // NFmiQueryData(info) constructor: the latter only copies the descriptors
-  // and leaves the raw data pool unallocated (writing then produces a 0-byte
-  // file with "Invalid datapool size" on read-back). CreateEmptyData allocates
-  // a fresh kFloatMissing-filled pool of the right size.
+  NFmiDataMatrix<float> matrix(static_cast<unsigned long>(nx),
+                               static_cast<unsigned long>(ny), kFloatMissing);
+  for (int row = 0; row < ny; ++row)
+  {
+    const int qdRow = ny - 1 - row;  // GDAL top-down → QD bottom-up
+    for (int col = 0; col < nx; ++col)
+      matrix[col][qdRow] = rowMajor[static_cast<size_t>(row) * nx + col];
+  }
+
+  if (!fi.TimeIndex(static_cast<unsigned long>(b - 1)))
+  {
+    CPLError(CE_Failure, CPLE_AppDefined,
+             "querydata CreateCopy: time index %d out of range", b - 1);
+    return false;
+  }
+  if (!fi.SetValues(matrix))
+  {
+    CPLError(CE_Failure, CPLE_AppDefined,
+             "querydata CreateCopy: SetValues failed for band %d", b);
+    return false;
+  }
+  return true;
+}
+
+// Build the QueryInfo + QueryData. Use CreateEmptyData rather than the
+// NFmiQueryData(info) constructor: the latter only copies the descriptors
+// and leaves the raw data pool unallocated (writing then produces a 0-byte
+// file with "Invalid datapool size" on read-back). CreateEmptyData allocates
+// a fresh kFloatMissing-filled pool of the right size. Returns nullptr after
+// reporting the error on failure.
+std::unique_ptr<NFmiQueryData> createEmptyData(const NFmiParamDescriptor& paramDesc,
+                                               const NFmiTimeDescriptor& timeDesc,
+                                               const NFmiHPlaceDescriptor& hPlace,
+                                               const NFmiVPlaceDescriptor& vPlace)
+{
   std::unique_ptr<NFmiQueryData> data;
   try
   {
@@ -280,8 +293,105 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
   {
     CPLError(CE_Failure, CPLE_AppDefined,
              "querydata CreateCopy: NFmiQueryDataUtil::CreateEmptyData returned null");
+  }
+  return data;
+}
+
+// The parameter of the querydata, creation options or metadata can override the defaults
+NFmiParamDescriptor makeParamDescriptor(CreateCopyOptList papszOptions, GDALDataset* poSrcDS)
+{
+  long paramId = 4;  // kFmiTemperature
+  std::string paramName = "Data";
+  if (const char* v = fetchOpt(papszOptions, poSrcDS, "PARAM_ID")) paramId = std::atol(v);
+  if (const char* v = fetchOpt(papszOptions, poSrcDS, "PARAM_NAME")) paramName = v;
+  // newbase strings are Latin-1; convert if the caller passed UTF-8 (the
+  // typical case from a NetCDF/GeoTIFF source).
+  paramName = fromUtf8(paramName);
+  NFmiParam param(static_cast<unsigned long>(paramId), paramName.c_str());
+  NFmiParamBag paramBag;
+  paramBag.Add(NFmiDataIdent(param));
+  return NFmiParamDescriptor(paramBag);
+}
+
+// The single level of the querydata, creation options or metadata can override the defaults
+NFmiVPlaceDescriptor makeLevelDescriptor(CreateCopyOptList papszOptions, GDALDataset* poSrcDS)
+{
+  float levelValue = 0.F;
+  long levelType = 1;  // ground / surface
+  if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_VALUE")) levelValue = std::atof(v);
+  if (const char* v = fetchOpt(papszOptions, poSrcDS, "LEVEL_TYPE")) levelType = std::atol(v);
+  NFmiLevelBag levelBag(static_cast<FmiLevelType>(levelType), levelValue, levelValue, 0.F);
+  return NFmiVPlaceDescriptor(levelBag);
+}
+
+}  // namespace
+
+GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bStrict*/,
+                        CreateCopyOptList papszOptions, GDALProgressFunc pfnProgress,
+                        void* pProgressData)
+{
+  if (poSrcDS == nullptr || pszFilename == nullptr)
+  {
+    CPLError(CE_Failure, CPLE_AppDefined, "querydata CreateCopy: missing source or filename");
     return nullptr;
   }
+
+  const int nx = poSrcDS->GetRasterXSize();
+  const int ny = poSrcDS->GetRasterYSize();
+  const int nBands = poSrcDS->GetRasterCount();
+  if (nx <= 0 || ny <= 0 || nBands <= 0)
+  {
+    CPLError(CE_Failure, CPLE_AppDefined,
+             "querydata CreateCopy: source must have non-empty raster and at least one band");
+    return nullptr;
+  }
+
+  GDALGeoTransform gt;
+  const auto* srcSrs = sourceSpatialReference(poSrcDS, gt);
+  if (srcSrs == nullptr) return nullptr;
+
+  std::unique_ptr<NFmiArea> area = createArea(*srcSrs, gt, nx, ny);
+  if (!area) return nullptr;
+
+  // QD grid storage: kBottomLeft is the conventional starting corner. We
+  // convert top-down GDAL rows to bottom-up QD rows on write.
+  //
+  // NOTE: must use the (Grid)-only constructor, not (Area, Grid). The latter
+  // sets both itsArea and itsGrid; NFmiHPlaceDescriptor::Size() then takes the
+  // IsArea() branch first and reports 1 location, which makes SetValues poke
+  // exactly one cell. The Grid-only constructor leaves itsArea null and Size()
+  // correctly returns nx*ny.
+  NFmiGrid grid(area.get(), static_cast<unsigned long>(nx), static_cast<unsigned long>(ny),
+                kBottomLeft);
+  NFmiHPlaceDescriptor hPlace(grid);
+
+  // Parameter
+  NFmiParamDescriptor paramDesc = makeParamDescriptor(papszOptions, poSrcDS);
+
+  // Single level (creation options can override).
+  NFmiVPlaceDescriptor vPlace = makeLevelDescriptor(papszOptions, poSrcDS);
+
+  // Times: read VALID_TIME per band; if any band is missing it, fall back to
+  // START_TIME + TIMESTEP_MINUTES creation options; if those are missing too,
+  // synthesise hourly steps from epoch as a last resort.
+  NFmiMetTime originTime;  // default = current UTC
+  bool haveOrigin = false;
+  if (const char* v = fetchOpt(papszOptions, poSrcDS, "ORIGIN_TIME"))
+    haveOrigin = parseIsoTime(v, originTime);
+  // Origin defaults to "now" but NFmiMetTime() that's fine.
+
+  std::vector<NFmiMetTime> validTimes;
+  if (!collectValidTimes(papszOptions, poSrcDS, nBands, validTimes)) return nullptr;
+
+  if (!haveOrigin && !validTimes.empty()) originTime = validTimes.front();
+
+  NFmiTimeList timeList;
+  for (auto& t : validTimes) timeList.Add(new NFmiMetTime(t));
+  NFmiTimeDescriptor timeDesc(originTime, timeList);
+
+  // Build the QueryInfo + QueryData
+  std::unique_ptr<NFmiQueryData> data = createEmptyData(paramDesc, timeDesc, hPlace, vPlace);
+  if (!data) return nullptr;
 
   NFmiFastQueryInfo fi(data.get());
   fi.First();
@@ -294,48 +404,7 @@ GDALDataset* createCopy(const char* pszFilename, GDALDataset* poSrcDS, int /*bSt
   std::vector<float> rowMajor(static_cast<size_t>(nx) * static_cast<size_t>(ny));
   for (int b = 1; b <= nBands; ++b)
   {
-    auto* band = poSrcDS->GetRasterBand(b);
-    const CPLErr ioErr = band->RasterIO(GF_Read, 0, 0, nx, ny, rowMajor.data(), nx, ny,
-                                        GDT_Float32, 0, 0, nullptr);
-    if (ioErr != CE_None)
-    {
-      CPLError(CE_Failure, CPLE_AppDefined,
-               "querydata CreateCopy: failed to read source band %d", b);
-      return nullptr;
-    }
-
-    // Map source band's nodata to kFloatMissing so QD readers see "missing"
-    // consistently. If the source has no nodata, leave values untouched.
-    int hasNoData = 0;
-    const double srcNoData = band->GetNoDataValue(&hasNoData);
-    if (hasNoData)
-    {
-      const float srcNoDataF = static_cast<float>(srcNoData);
-      for (auto& v : rowMajor)
-        if (v == srcNoDataF) v = kFloatMissing;
-    }
-
-    NFmiDataMatrix<float> matrix(static_cast<unsigned long>(nx),
-                                 static_cast<unsigned long>(ny), kFloatMissing);
-    for (int row = 0; row < ny; ++row)
-    {
-      const int qdRow = ny - 1 - row;  // GDAL top-down → QD bottom-up
-      for (int col = 0; col < nx; ++col)
-        matrix[col][qdRow] = rowMajor[static_cast<size_t>(row) * nx + col];
-    }
-
-    if (!fi.TimeIndex(static_cast<unsigned long>(b - 1)))
-    {
-      CPLError(CE_Failure, CPLE_AppDefined,
-               "querydata CreateCopy: time index %d out of range", b - 1);
-      return nullptr;
-    }
-    if (!fi.SetValues(matrix))
-    {
-      CPLError(CE_Failure, CPLE_AppDefined,
-               "querydata CreateCopy: SetValues failed for band %d", b);
-      return nullptr;
-    }
+    if (!copyBand(poSrcDS, b, nx, ny, rowMajor, fi)) return nullptr;
 
     if (pfnProgress != nullptr)
     {
