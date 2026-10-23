@@ -7,7 +7,7 @@
 
 Summary: GDAL driver for FMI QueryData (.sqd) files
 Name: %{SPECNAME}
-Version: 26.10.17
+Version: 26.10.23
 Release: 1%{?dist}.fmi
 License: MIT
 Group: Development/Libraries
@@ -113,6 +113,9 @@ rm -rf $RPM_BUILD_ROOT
 %{GDAL_PLUGIN_DIR}/gdal_%{DRIVERNAME}.so
 
 %changelog
+* Fri Oct 23 2026 Andris Pavēnis <andris.pavenis@fmi.fi> 26.10.23-1.fmi
+- Bump version
+
 * Sat Oct 17 2026 Mika Heiskanen <mika.heiskanen@fmi.fi> - 26.10.17-1.fmi
 - Split functions with a cognitive complexity above 25 into smaller helpers, no functional changes
 
